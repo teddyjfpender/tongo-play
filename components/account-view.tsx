@@ -1,46 +1,55 @@
 import {Account} from "starknet";
+import {Account as TongoAccount, AccountState as TongoAccountState} from "@fatsolutions/tongo-sdk";
 import {Button, Text, View} from "react-native";
-import {useState} from "react";
+import {useEffect, useState} from "react";
+import {AddressView} from "@/components/address-view";
+import TongoAccountView from "@/components/tongo-account-view";
 
 export type AccountViewProps = {
     starknetAccount: Account;
     isDeployed: boolean;
+    tongoAccount: TongoAccount | null;
+    tongoAccountState: TongoAccountState | null;
 
     onPressDeploy: () => void;
     onPressAssociate: () => void;
 }
 
-function AccountView({starknetAccount, isDeployed, onPressDeploy, onPressAssociate}: AccountViewProps) {
+function AccountView({starknetAccount, tongoAccount, tongoAccountState, isDeployed, onPressDeploy, onPressAssociate}: AccountViewProps) {
     const [tongoAddress, setTongoAddress] = useState<string | null>(null);
 
-    // useEffect(() => {
-    //     if (tongoAccount) {
-    //         setTongoAddress(tongoAccount.tongoAddress);
-    //     }
-    // }, [tongoAccount, setTongoAddress]);
+    useEffect(() => {
+        if (tongoAccount) {
+            setTongoAddress(tongoAccount.tongoAddress());
+        }
+    }, [tongoAccount, setTongoAddress]);
 
     return (
-        <View>
-            <View>
-                <Text>Starknet Account</Text>
-                <Text>{starknetAccount.address}</Text>
+        <View style={{
+            gap: 16
+        }}>
+            <View style={{padding: 8}}>
+                <Text style={{fontWeight: 'bold', fontSize: 24}}>Starknet Account</Text>
+                <AddressView address={starknetAccount.address} />
 
                 {!isDeployed && (
                     <Button title={"Deploy"} onPress={onPressDeploy}/>
                 )}
             </View>
 
-            {tongoAddress && (
-                <View>
-                    <Text>Tongo Account</Text>
-                    <Text>{tongoAddress}</Text>
-                </View>
-            )}
-
             {!tongoAddress && (
                 <Button
                     title={"Associate Tongo Account"}
                     onPress={onPressAssociate}
+                />
+            )}
+
+            {(tongoAccountState && tongoAccount) && (
+                <TongoAccountView
+                    style={{paddingHorizontal: 16}}
+                    tokenName={"STRK"}
+                    account={tongoAccount}
+                    state={tongoAccountState}
                 />
             )}
 

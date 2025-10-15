@@ -1,0 +1,67 @@
+import {Button, StyleSheet, Text, TextInput, View} from "react-native";
+import {useState} from "react";
+
+export type BalanceInputProps = {
+    placeholder?: string;
+    tokenName: string;
+    action: string;
+    onAction: (balance: number) => void;
+}
+
+function BalanceInput({placeholder, tokenName, action, onAction}: BalanceInputProps) {
+    const [balanceText, setBalanceText] = useState("");
+
+    return (
+        <View style={styles.container}>
+            <View style={styles.inputContainer}>
+                <TextInput
+                    style={styles.input}
+                    value={balanceText}
+                    onChangeText={(text) => {
+                        if (!isNaN(Number(text))) {
+                            setBalanceText(text);
+                        }
+                    }}
+                    placeholder={placeholder ?? ""}
+                    keyboardType="numeric"
+                />
+                <Text style={styles.tokenName}>{tokenName}</Text>
+            </View>
+            <Button
+                title={action}
+                disabled={balanceText.length === 0}
+                onPress={() => {
+                    let number = parseFloat(balanceText);
+                    if (!isNaN(number)) {
+                        setBalanceText("");
+                        onAction(number);
+                    }
+                }}
+            />
+        </View>
+    );
+}
+
+export default BalanceInput;
+
+const styles = StyleSheet.create({
+    container: {
+        flexDirection: "row",
+    },
+    inputContainer: {
+        flex: 1,
+        flexDirection: "row",
+        alignItems: "center",
+    },
+    tokenName: {
+        position: "absolute",
+        right: 16,
+    },
+    input: {
+        width: "100%",
+        height: "100%",
+        paddingRight: 64,
+        paddingLeft: 16,
+        backgroundColor: "#c9ccc9",
+    }
+})

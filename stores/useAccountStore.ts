@@ -1,9 +1,13 @@
 import {create} from "zustand";
 import {Account, CallData, ec, RpcError, RpcProvider} from "starknet";
+import {Account as TongoAccount, AccountState as TongoAccountState} from "@fatsolutions/tongo-sdk";
 import * as SecureStore from 'expo-secure-store';
 import randomHex from "@/utils/randomHex";
 import starknetAccountFromPrivateKey from "@/utils/starknetAccountFromPrivateKey";
 import isValidPrivateKey from "@/utils/isValidPrivateKey";
+import deriveTongoPrivateKey from "@/utils/deriveTongoPrivateKey";
+console.log("Tongo SDK loaded successfully!");
+
 
 const OZ_ACCOUNT_CLASS_HASH = "0x540d7f5ec7ecf317e68d48564934cb99259781b1ee3cedbbc37ec5337f8e688";
 const TONGO_CONTRACT_ADDRESS = "0x028798470f0939d26aab8a3dcb144b9045fb113867ae205ad59b1b47ec904f00";
@@ -14,13 +18,16 @@ export interface AccountState {
     isInitialized: boolean;
     isDeployed: boolean;
     starknetAccount: Account | null;
-    // tongoAccount: TongoAccount | null;
+    tongoAccount: TongoAccount | null;
+    tongoAccountState: TongoAccountState | null;
 
     initialize: () => Promise<void>;
 
     restoreStarknetAccount: (privateKey: string) => Promise<void>;
     createStarknetAccount: () => Promise<void>;
     deployStarknetAccount: () => Promise<void>;
+
+    associateTongoAccount: () => Promise<void>;
 
     nuke: () => Promise<void>;
 }
@@ -47,6 +54,7 @@ export const useAccountStore = create<AccountState>((set, get) => ({
     isDeployed: false,
     starknetAccount: null,
     tongoAccount: null,
+    tongoAccountState: null,
 
     initialize: async () => {
         const { provider } = get();
@@ -117,6 +125,20 @@ export const useAccountStore = create<AccountState>((set, get) => ({
         const receipt = await provider.waitForTransaction(transaction_hash);
         console.log('✅ Account deployed.\n   address =', contract_address, receipt);
         set({isDeployed: true})
+    },
+
+    associateTongoAccount: async () => {
+        const { provider, starknetAccount } = get();
+
+        if (!starknetAccount) throw new Error("Starknet Account not found...");
+
+        const tongoPrivateKey = await deriveTongoPrivateKey(starknetAccount);
+        console.log("Tongo Private Key: ", tongoPrivateKey);
+        const tongoAccount = new TongoAccount(tongoPrivateKey, TONGO_CONTRACT_ADDRESS, provider);
+        console.log("Tongo Account: ", tongoAccount.tongoAddress());
+
+        const balance = await tongoAccount.state();
+        set({tongoAccount: tongoAccount, tongoAccountState: balance});
     },
 
     nuke: async () => {
