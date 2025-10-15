@@ -28,6 +28,7 @@ export interface AccountState {
     deployStarknetAccount: () => Promise<void>;
 
     associateTongoAccount: () => Promise<void>;
+    fund: (amount: bigint) => Promise<void>;
 
     nuke: () => Promise<void>;
 }
@@ -139,6 +140,28 @@ export const useAccountStore = create<AccountState>((set, get) => ({
 
         const balance = await tongoAccount.state();
         set({tongoAccount: tongoAccount, tongoAccountState: balance});
+    },
+    fund: async (amount: bigint) => {
+        const { provider, starknetAccount, tongoAccount } = get();
+
+        if (!starknetAccount) throw new Error("Starknet account not found...");
+        if (!tongoAccount) throw new Error("Tongo account not found...");
+
+        console.log("Initiate funding for:", amount)
+        const fundOp = await tongoAccount.fund({amount});
+        await fundOp.populateApprove();
+        console.log("Execute tx on starknet...")
+        const tx = await starknetAccount.execute([
+            fundOp.approve!,
+            fundOp.toCalldata(),
+        ])
+
+        console.log("Waiting for:", tx.transaction_hash);
+        await provider.waitForTransaction(tx.transaction_hash);
+
+        console.log("TX Completed");
+        const state = await tongoAccount.state();
+        set({tongoAccountState: state});
     },
 
     nuke: async () => {

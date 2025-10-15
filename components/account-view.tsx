@@ -13,9 +13,18 @@ export type AccountViewProps = {
 
     onPressDeploy: () => void;
     onPressAssociate: () => void;
+    onPressFund: (amount: bigint) => void;
 }
 
-function AccountView({starknetAccount, tongoAccount, tongoAccountState, isDeployed, onPressDeploy, onPressAssociate}: AccountViewProps) {
+function AccountView({
+                         starknetAccount,
+                         tongoAccount,
+                         tongoAccountState,
+                         isDeployed,
+                         onPressDeploy,
+                         onPressAssociate,
+                         onPressFund
+                     }: AccountViewProps) {
     const [tongoAddress, setTongoAddress] = useState<string | null>(null);
 
     useEffect(() => {
@@ -30,7 +39,7 @@ function AccountView({starknetAccount, tongoAccount, tongoAccountState, isDeploy
         }}>
             <View style={{padding: 8}}>
                 <Text style={{fontWeight: 'bold', fontSize: 24}}>Starknet Account</Text>
-                <AddressView address={starknetAccount.address} />
+                <AddressView address={starknetAccount.address}/>
 
                 {!isDeployed && (
                     <Button title={"Deploy"} onPress={onPressDeploy}/>
@@ -50,6 +59,7 @@ function AccountView({starknetAccount, tongoAccount, tongoAccountState, isDeploy
                     tokenName={"STRK"}
                     account={tongoAccount}
                     state={tongoAccountState}
+                    onFund={onPressFund}
                 />
             )}
 

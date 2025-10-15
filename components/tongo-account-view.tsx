@@ -2,15 +2,17 @@ import {Account, AccountState} from "@fatsolutions/tongo-sdk";
 import {StyleProp, StyleSheet, Text, View, ViewStyle} from "react-native";
 import {AddressView} from "@/components/address-view";
 import BalanceInput from "@/components/balance-input";
+import numberToBigInt from "@/utils/numberToBigInt";
 
 export type AccountStateViewProps = {
     style?: StyleProp<ViewStyle>,
     tokenName: string,
     account: Account,
     state: AccountState;
+    onFund: (amount: bigint) => void;
 }
 
-function TongoAccountView({style, tokenName, account, state}: AccountStateViewProps) {
+function TongoAccountView({style, tokenName, account, state, onFund}: AccountStateViewProps) {
     return (
         <View style={style}>
             <Text style={styles.title}>{`Tongo Account (${tokenName})`}</Text>
@@ -24,7 +26,10 @@ function TongoAccountView({style, tokenName, account, state}: AccountStateViewPr
                 tokenName={tokenName}
                 action={"Fund"}
                 placeholder={`Type ${tokenName} amount...`}
-                onAction={(balance) => console.log("Fund", balance)} />
+                onAction={(balance) => {
+                    const amount = numberToBigInt(balance, 18);
+                    onFund(amount)
+                }} />
         </View>
     );
 }

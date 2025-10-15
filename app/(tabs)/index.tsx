@@ -16,6 +16,7 @@ export default function HomeScreen() {
         restoreStarknetAccount,
         deployStarknetAccount,
         associateTongoAccount,
+        fund,
         nuke
     } = useAccountStore();
     const [restorePrivateKey, setRestorePrivateKey] = useState("");
@@ -41,10 +42,13 @@ export default function HomeScreen() {
                         tongoAccountState={tongoAccountState}
                         isDeployed={isDeployed}
                         onPressDeploy={() => {
-                            void deployStarknetAccount()
+                            void deployStarknetAccount();
                         }}
                         onPressAssociate={() => {
-                            void associateTongoAccount()
+                            void associateTongoAccount();
+                        }}
+                        onPressFund={(amount) => {
+                            void fund(amount);
                         }}
                     />
                 ) : (
