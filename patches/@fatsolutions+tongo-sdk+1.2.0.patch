@@ -1,0 +1,11 @@
+diff --git a/node_modules/@fatsolutions/tongo-sdk/src/constants.ts b/node_modules/@fatsolutions/tongo-sdk/src/constants.ts
+index 262afc7..66b76a9 100644
+--- a/node_modules/@fatsolutions/tongo-sdk/src/constants.ts
++++ b/node_modules/@fatsolutions/tongo-sdk/src/constants.ts
+@@ -1,5 +1,5 @@
+ import { CURVE } from "@scure/starknet";
+-import { ProjectivePoint } from "./types.js";
++import { ProjectivePoint } from "./types";
+ 
+ export const CURVE_ORDER = CURVE.n;
+ export const GENERATOR: ProjectivePoint = new ProjectivePoint(CURVE.Gx, CURVE.Gy, 1n);
