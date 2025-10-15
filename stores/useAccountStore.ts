@@ -6,8 +6,6 @@ import randomHex from "@/utils/randomHex";
 import starknetAccountFromPrivateKey from "@/utils/starknetAccountFromPrivateKey";
 import isValidPrivateKey from "@/utils/isValidPrivateKey";
 import deriveTongoPrivateKey from "@/utils/deriveTongoPrivateKey";
-console.log("Tongo SDK loaded successfully!");
-
 
 const OZ_ACCOUNT_CLASS_HASH = "0x540d7f5ec7ecf317e68d48564934cb99259781b1ee3cedbbc37ec5337f8e688";
 const TONGO_CONTRACT_ADDRESS = "0x028798470f0939d26aab8a3dcb144b9045fb113867ae205ad59b1b47ec904f00";
