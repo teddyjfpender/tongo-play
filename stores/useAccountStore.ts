@@ -1,14 +1,14 @@
-import {create} from "zustand";
-import {Account, CallData, ec, RpcError, RpcProvider} from "starknet";
-import {Account as TongoAccount, AccountState as TongoAccountState} from "@fatsolutions/tongo-sdk";
-import * as SecureStore from 'expo-secure-store';
-import randomHex from "@/utils/randomHex";
-import starknetAccountFromPrivateKey from "@/utils/starknetAccountFromPrivateKey";
-import isValidPrivateKey from "@/utils/isValidPrivateKey";
 import deriveTongoPrivateKey from "@/utils/deriveTongoPrivateKey";
+import isValidPrivateKey from "@/utils/isValidPrivateKey";
+import randomHex from "@/utils/randomHex";
+import { getStringItem, removeItem, setStringItem } from "@/utils/secureStorage";
+import starknetAccountFromPrivateKey from "@/utils/starknetAccountFromPrivateKey";
+import { Account as TongoAccount, AccountState as TongoAccountState } from "@fatsolutions/tongo-sdk";
+import { Account, CallData, ec, RpcError, RpcProvider } from "starknet";
+import { create } from "zustand";
 
 const OZ_ACCOUNT_CLASS_HASH = "0x540d7f5ec7ecf317e68d48564934cb99259781b1ee3cedbbc37ec5337f8e688";
-const TONGO_CONTRACT_ADDRESS = "0x028798470f0939d26aab8a3dcb144b9045fb113867ae205ad59b1b47ec904f00";
+const TONGO_CONTRACT_ADDRESS = "0x00b4cca30f0f641e01140c1c388f55641f1c3fe5515484e622b6cb91d8cee585";
 const OZ_ACCOUNT_STORAGE_KEY = "oz.account.key";
 
 export interface AccountState {
@@ -57,7 +57,7 @@ export const useAccountStore = create<AccountState>((set, get) => ({
 
     initialize: async () => {
         const { provider } = get();
-        const privateKey = await SecureStore.getItemAsync(OZ_ACCOUNT_STORAGE_KEY);
+        const privateKey = await getStringItem(OZ_ACCOUNT_STORAGE_KEY);
 
         if (privateKey) {
             const account = starknetAccountFromPrivateKey(privateKey, OZ_ACCOUNT_CLASS_HASH, provider);
@@ -83,7 +83,7 @@ export const useAccountStore = create<AccountState>((set, get) => ({
         }
 
         const account = starknetAccountFromPrivateKey(privateKey, OZ_ACCOUNT_CLASS_HASH, provider);
-        await SecureStore.setItemAsync(OZ_ACCOUNT_STORAGE_KEY, privateKey);
+        await setStringItem(OZ_ACCOUNT_STORAGE_KEY, privateKey);
 
         let classHash = await getAccountClassHash(provider, account);
         set({starknetAccount: account, isDeployed: classHash !== null});
@@ -96,7 +96,7 @@ export const useAccountStore = create<AccountState>((set, get) => ({
 
         console.log("Private Key: ", privateKey);
         const account = starknetAccountFromPrivateKey(privateKey, OZ_ACCOUNT_CLASS_HASH, provider);
-        await SecureStore.setItemAsync(OZ_ACCOUNT_STORAGE_KEY, privateKey);
+        await setStringItem(OZ_ACCOUNT_STORAGE_KEY, privateKey);
 
         set({starknetAccount: account, isDeployed: false});
         console.log("Account created ", account.address);
@@ -107,7 +107,7 @@ export const useAccountStore = create<AccountState>((set, get) => ({
             throw new Error("StarknetAccount not found. Nothing to deploy...");
         }
 
-        const privateKey = await SecureStore.getItemAsync(OZ_ACCOUNT_STORAGE_KEY);
+        const privateKey = await getStringItem(OZ_ACCOUNT_STORAGE_KEY);
         if (!privateKey) {
             throw new Error("No private key found...");
         }
@@ -145,6 +145,15 @@ export const useAccountStore = create<AccountState>((set, get) => ({
         if (!starknetAccount) throw new Error("Starknet account not found...");
         if (!tongoAccount) throw new Error("Tongo account not found...");
 
+        // Tongo supports 32-bit integer balances only
+        const MAX_32BIT = (1n << 32n) - 1n;
+        if (amount < 0n) {
+            throw new Error("Amount must be a positive integer");
+        }
+        if (amount > MAX_32BIT) {
+            throw new Error(`Amount too large. Max supported is ${MAX_32BIT}`);
+        }
+
         console.log("Initiate funding for:", amount)
         const fundOp = await tongoAccount.fund({amount});
         await fundOp.populateApprove();
@@ -168,7 +177,7 @@ export const useAccountStore = create<AccountState>((set, get) => ({
             throw new Error("StarknetAccount not found. Nothing to remove...");
         }
 
-        await SecureStore.setItemAsync(OZ_ACCOUNT_STORAGE_KEY, "");
+        await removeItem(OZ_ACCOUNT_STORAGE_KEY);
         set({
             isInitialized: true,
             starknetAccount: null,

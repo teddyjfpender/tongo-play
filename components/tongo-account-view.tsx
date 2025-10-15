@@ -27,7 +27,8 @@ function TongoAccountView({style, tokenName, account, state, onFund}: AccountSta
                 action={"Fund"}
                 placeholder={`Type ${tokenName} amount...`}
                 onAction={(balance) => {
-                    const amount = numberToBigInt(balance, 18);
+                    // Tongo balances are integer (32-bit). Do not scale by 1e18.
+                    const amount = numberToBigInt(balance, 0);
                     onFund(amount)
                 }} />
         </View>
