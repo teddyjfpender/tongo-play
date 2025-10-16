@@ -1,6 +1,8 @@
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { IconSymbol } from '@/components/ui/icon-symbol';
+import { useColorScheme } from '@/hooks/use-color-scheme';
+import { Colors } from '@/constants/theme';
 
 type ActionButtonProps = {
   icon: Parameters<typeof IconSymbol>[0]['name'];
@@ -10,12 +12,14 @@ type ActionButtonProps = {
 };
 
 export default function ActionButton({ icon, label, onPress, disabled }: ActionButtonProps) {
+  const theme = useColorScheme() ?? 'light';
+  const themeColors = Colors[theme];
   return (
     <Pressable onPress={onPress} disabled={disabled} accessibilityRole="button">
-      <View style={[styles.button, disabled && styles.buttonDisabled]}>
-        <IconSymbol name={icon} size={24} color={disabled ? '#bbb' : '#fff'} />
+      <View style={[styles.button, { backgroundColor: disabled ? themeColors.icon : themeColors.text }]}>
+        <IconSymbol name={icon} size={24} color={themeColors.background} />
       </View>
-      <Text style={[styles.label, disabled && styles.labelDisabled]}>{label}</Text>
+      <Text style={[styles.label, { color: disabled ? themeColors.icon : themeColors.text }]}>{label}</Text>
     </Pressable>
   );
 }
@@ -25,21 +29,13 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: '#333',
     alignItems: 'center',
     justifyContent: 'center',
     alignSelf: 'center',
-  },
-  buttonDisabled: {
-    backgroundColor: '#e0e0e0',
   },
   label: {
     textAlign: 'center',
     marginTop: 6,
     fontWeight: '600',
   },
-  labelDisabled: {
-    color: '#999',
-  },
 });
-

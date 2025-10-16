@@ -24,6 +24,8 @@ import AddressPill from "@/components/ui/address-pill";
 import { Collapsible } from "@/components/ui/collapsible";
 import ActionRow from "@/components/ui/action-row";
 import { useRouter } from 'expo-router';
+import { useColorScheme } from '@/hooks/use-color-scheme';
+import { Colors } from '@/constants/theme';
 
 export type AccountStateViewProps = {
     style?: StyleProp<ViewStyle>,
@@ -55,6 +57,8 @@ function TongoAccountView({style, tokenName, account}: AccountStateViewProps) {
     const shortTongo = tongoBase58.length > 10 ? `${tongoBase58.slice(0,5)}...${tongoBase58.slice(-6)}` : tongoBase58;
 
     const [isRefreshing, setIsRefreshing] = useState(false);
+    const theme = useColorScheme() ?? 'light';
+    const themeColors = Colors[theme];
 
     return (
         <View style={[style, {gap: 12}] }>
@@ -62,17 +66,17 @@ function TongoAccountView({style, tokenName, account}: AccountStateViewProps) {
             <View style={{ flexDirection: 'row', justifyContent: 'flex-end' }}>
                 <Pressable onPress={() => { const run = async () => { setIsRefreshing(true); try { await refreshBalance(); } finally { setIsRefreshing(false); } }; void run(); }}>
                     {isRefreshing ? (
-                        <ActivityIndicator size={16} color={'black'} />
+                        <ActivityIndicator size={16} color={themeColors.text as string} />
                     ) : (
-                        <IconSymbol name={'arrow.clockwise'} size={18} color={'black'} />
+                        <IconSymbol name={'arrow.clockwise'} size={18} color={themeColors.text} />
                     )}
                 </Pressable>
             </View>
 
             {/* Balance + unit */}
             <View style={{ flexDirection: 'row', alignSelf: 'center', alignItems: 'flex-end', gap: 6 }}>
-                <Text style={{ fontSize: 36, fontWeight: '700' }}>{tongoAccountState.balance}</Text>
-                <Text style={{ fontSize: 14, fontWeight: '600', color: '#555', marginBottom: 4 }}>STRK</Text>
+                <Text style={{ fontSize: 36, fontWeight: '700', color: themeColors.text }}>{tongoAccountState.balance}</Text>
+                <Text style={{ fontSize: 14, fontWeight: '600', color: themeColors.icon, marginBottom: 4 }}>STRK</Text>
             </View>
 
             {/* Address pill */}
