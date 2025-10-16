@@ -20,6 +20,8 @@ import {IconSymbol} from "@/components/ui/icon-symbol";
 import {useAccountStore} from "@/stores/useAccountStore";
 import {ProgressButton} from "@/components/progress-button";
 import OperationCard from "@/components/ui/operation-card";
+import AddressPill from "@/components/ui/address-pill";
+import { Collapsible } from "@/components/ui/collapsible";
 import ActionRow from "@/components/ui/action-row";
 import OperationModal from "@/components/ui/operation-modal";
 
@@ -44,14 +46,39 @@ function TongoAccountView({style, tokenName, account}: AccountStateViewProps) {
         fund,
         withdraw,
         transfer,
-        rollover
+        rollover,
+        refreshBalance
     } = useAccountStore();
 
     if (!tongoAccountState || !tongoAccount) return null;
 
+    // helper to truncate base58 address
+    const tongoBase58 = tongoAccount.tongoAddress();
+    const shortTongo = tongoBase58.length > 10 ? `${tongoBase58.slice(0,5)}...${tongoBase58.slice(-6)}` : tongoBase58;
+
+    const [isRefreshing, setIsRefreshing] = useState(false);
+
     return (
         <View style={[style, {gap: 12}] }>
-            <AddressView address={tongoAccount.tongoAddress()}/>
+            {/* Top bar with refresh */}
+            <View style={{ flexDirection: 'row', justifyContent: 'flex-end' }}>
+                <Pressable onPress={() => { const run = async () => { setIsRefreshing(true); try { await refreshBalance(); } finally { setIsRefreshing(false); } }; void run(); }}>
+                    {isRefreshing ? (
+                        <ActivityIndicator size={16} color={'black'} />
+                    ) : (
+                        <IconSymbol name={'arrow.clockwise'} size={18} color={'black'} />
+                    )}
+                </Pressable>
+            </View>
+
+            {/* Balance + unit */}
+            <View style={{ flexDirection: 'row', alignSelf: 'center', alignItems: 'flex-end', gap: 6 }}>
+                <Text style={{ fontSize: 36, fontWeight: '700' }}>{tongoAccountState.balance}</Text>
+                <Text style={{ fontSize: 14, fontWeight: '600', color: '#555', marginBottom: 4 }}>STRK</Text>
+            </View>
+
+            {/* Address pill */}
+            <AddressPill value={shortTongo} copyValue={tongoBase58} />
 
             <ActionRow
                 actions={[
@@ -62,50 +89,22 @@ function TongoAccountView({style, tokenName, account}: AccountStateViewProps) {
                 ]}
             />
 
-            <OperationCard title={"Summary"}>
-                <Balance />
-            </OperationCard>
+            {/* Descriptions moved into accordion below */}
 
-            <OperationCard
-                title={"Fund"}
-                description={"Move public STRK into your confidential balance."}
-            >
-                <Text>{"Move funds into Tongo when you want privacy."}</Text>
-            </OperationCard>
 
-            {tongoAccountState.balance > 0 && (
-                <OperationCard
-                    title={"Transfer"}
-                    description={"Send confidential STRK to another Tongo address."}
-                >
-                    <Text>{"Send confidential STRK to another Tongo address."}</Text>
-                </OperationCard>
-            )}
-
-            {tongoAccountState.pending > 0 && (
-                <OperationCard
-                    title={"Rollover"}
-                    description={"Consolidate pending outputs into your spendable balance."}
-                    actionLabel={"Rollover"}
-                    loading={isRollingOver}
-                    onAction={() => {
-                        const run = async () => {
-                            setIsRollingOver(true);
-                            try { await rollover(); } catch (e) { console.error(e); }
-                            setIsRollingOver(false);
-                        };
-                        void run();
-                    }}
-                >
-                    <Text>{`You have ${tongoAccountState.pending} pending.`}</Text>
-                </OperationCard>
-            )}
-
-            {tongoAccountState.balance > 0 && (
-                <OperationCard title={"Withdraw"} description={"Exit back to your Starknet account."}>
-                    <Text>{"Withdraw converts your confidential balance back to your public STRK."}</Text>
-                </OperationCard>
-            )}
+            <Collapsible title="How does this work?">
+                <View style={{ gap: 8 }}>
+                    <OperationCard title={"Fund"} description={"Move public STRK into your confidential balance."}>
+                        <Text>{"Move funds into Tongo when you want privacy."}</Text>
+                    </OperationCard>
+                    <OperationCard title={"Transfer"} description={"Send confidential STRK to another Tongo address."}>
+                        <Text>{"Transfers are shielded within the Tongo system."}</Text>
+                    </OperationCard>
+                    <OperationCard title={"Withdraw"} description={"Exit back to your public Starknet account."}>
+                        <Text>{"Withdraw when you want to return funds to your regular STRK balance."}</Text>
+                    </OperationCard>
+                </View>
+            </Collapsible>
 
             {/* Fund Modal */}
             <OperationModal title="Fund" visible={showFund} onClose={() => setShowFund(false)}>
@@ -185,91 +184,4 @@ function TongoAccountView({style, tokenName, account}: AccountStateViewProps) {
     );
 }
 
-function Balance() {
-    const {
-        tongoAccountState,
-        refreshBalance,
-        rollover
-    } = useAccountStore();
-    const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
-    const [isRollingOver, setIsRollingOver] = useState<boolean>(false);
-
-    if (!tongoAccountState) return null;
-
-    return (
-        <View>
-            <View style={balanceStyles.header}>
-                <Text>{`Nonce: ${tongoAccountState.nonce}`}</Text>
-
-                <Pressable onPress={() => {
-                    const refreshOp = async () => {
-                        setIsRefreshing(true);
-                        await refreshBalance();
-                        setIsRefreshing(false);
-                    }
-
-                    void refreshOp();
-                }}>
-                    {isRefreshing ? (
-                        <ActivityIndicator
-                            size={16}
-                            color={"black"}
-                        />
-                    ) : (
-                        <IconSymbol name={"arrow.clockwise"} size={16} color={"black"} />
-                    )}
-                </Pressable>
-            </View>
-            <View style={balanceStyles.container}>
-                <View style={balanceStyles.balanceContainer}>
-                    <Text style={balanceStyles.title}>Balance</Text>
-                    <Text style={balanceStyles.balance}>{tongoAccountState.balance}</Text>
-                </View>
-
-                <View style={balanceStyles.balanceContainer}>
-                    <Text style={balanceStyles.title}>Pending</Text>
-                    <Text style={balanceStyles.balance}>{tongoAccountState.pending}</Text>
-                </View>
-            </View>
-        </View>
-
-    );
-}
-
 export default TongoAccountView;
-
-const styles = StyleSheet.create({
-    title: {
-        fontWeight: "bold",
-        fontSize: 24,
-    }
-})
-
-const balanceStyles = StyleSheet.create({
-    header: {
-        flexDirection: "row",
-        justifyContent: "space-between",
-        alignItems: "center",
-        borderLeftWidth: 1,
-        borderTopWidth: 1,
-        borderRightWidth: 1,
-        paddingVertical: 4,
-        paddingHorizontal: 8,
-    },
-    container: {
-        flexDirection: "row",
-    },
-    balanceContainer: {
-        flex: 1,
-        borderWidth: 1,
-        padding: 8,
-        gap: 4
-    },
-    title: {
-        fontWeight: "bold",
-        alignSelf: "center",
-    },
-    balance: {
-        alignSelf: "center",
-    }
-})

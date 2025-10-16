@@ -38,6 +38,31 @@ function AccountView({starknetAccount}: AccountViewProps) {
 
     return (
         <View style={{ gap: 12, padding: 8 }}>
+            <SectionCard>
+                {!tongoAddress && (
+                    <ProgressButton
+                        title={"Associate Tongo Account"}
+                        isLoading={isAssociating}
+                        onPress={() => {
+                            const associate = async () => {
+                                setIsAssociating(true)
+                                try { await associateTongoAccount(); } catch (e) { console.log(e) }
+                                setIsAssociating(false)
+                            }
+                            void associate()
+                        }}
+                    />
+                )}
+
+                {(tongoAccountState && tongoAccount) && (
+                    <TongoAccountView
+                        style={{ paddingHorizontal: 0 }}
+                        tokenName={"STRK"}
+                        account={tongoAccount}
+                    />
+                )}
+            </SectionCard>
+
             <SectionCard
                 title="Starknet Account"
                 right={
@@ -71,31 +96,6 @@ function AccountView({starknetAccount}: AccountViewProps) {
                         token={"STRK"}
                         erc20Address={"0x04718f5a0Fc34cC1AF16A1cdee98fFB20C31f5cD61D6Ab07201858f4287c938D"}
                         accountAddress={starknetAccount.address}
-                    />
-                )}
-            </SectionCard>
-
-            <SectionCard title="Confidential (STRK)">
-                {!tongoAddress && (
-                    <ProgressButton
-                        title={"Associate Tongo Account"}
-                        isLoading={isAssociating}
-                        onPress={() => {
-                            const associate = async () => {
-                                setIsAssociating(true)
-                                try { await associateTongoAccount(); } catch (e) { console.log(e) }
-                                setIsAssociating(false)
-                            }
-                            void associate()
-                        }}
-                    />
-                )}
-
-                {(tongoAccountState && tongoAccount) && (
-                    <TongoAccountView
-                        style={{ paddingHorizontal: 0 }}
-                        tokenName={"STRK"}
-                        account={tongoAccount}
                     />
                 )}
             </SectionCard>

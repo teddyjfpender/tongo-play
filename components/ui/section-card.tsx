@@ -2,7 +2,7 @@ import React, { ReactNode } from 'react';
 import { StyleProp, StyleSheet, Text, View, ViewStyle } from 'react-native';
 
 type SectionCardProps = {
-  title: string;
+  title?: string;
   right?: ReactNode;
   children?: ReactNode;
   style?: StyleProp<ViewStyle>;
@@ -12,10 +12,12 @@ type SectionCardProps = {
 export default function SectionCard({ title, right, children, style, contentStyle }: SectionCardProps) {
   return (
     <View style={[styles.card, style]}>
-      <View style={styles.header}>
-        <Text style={styles.title}>{title}</Text>
-        {right ? <View>{right}</View> : null}
-      </View>
+      {(title || right) ? (
+        <View style={styles.header}>
+          {title ? <Text style={styles.title}>{title}</Text> : <View />}
+          {right ? <View>{right}</View> : null}
+        </View>
+      ) : null}
       <View style={[styles.content, contentStyle]}>{children}</View>
     </View>
   );
@@ -47,4 +49,3 @@ const styles = StyleSheet.create({
     gap: 8,
   },
 });
-
