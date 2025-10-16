@@ -8,18 +8,9 @@ export default function HomeScreen() {
     const {
         isInitialized,
         starknetAccount,
-        tongoAccount,
-        tongoAccountState,
-        isDeployed,
         initialize,
         createStarknetAccount,
         restoreStarknetAccount,
-        deployStarknetAccount,
-        associateTongoAccount,
-        fund,
-        transfer,
-        refreshBalance,
-        nuke
     } = useAccountStore();
     const [restorePrivateKey, setRestorePrivateKey] = useState("");
     const [isPrivateKeyValid, setIsPrivateKeyValid] = useState(false);
@@ -37,34 +28,13 @@ export default function HomeScreen() {
     let content;
     if (isInitialized) {
         if (starknetAccount) {
-            content = <AccountView
-                starknetAccount={starknetAccount}
-                tongoAccount={tongoAccount}
-                tongoAccountState={tongoAccountState}
-                isDeployed={isDeployed}
-                onPressDelete={() => {
-                    void nuke();
-                }}
-                onPressRefreshBalance={() => {
-                    void refreshBalance();
-                }}
-                onPressDeploy={() => {
-                    void deployStarknetAccount();
-                }}
-                onPressAssociate={() => {
-                    void associateTongoAccount();
-                }}
-                onPressFund={(amount) => {
-                    void fund(amount);
-                }}
-                onPressTransfer={(amount, address) => {
-                    void transfer(amount, address);
-                }}
-            />
+            content = <AccountView starknetAccount={starknetAccount} />
         } else {
             content = <View style={styles.restoreAccountContainer}>
                 <Button
-                    onPress={createStarknetAccount}
+                    onPress={() => {
+                        void createStarknetAccount();
+                    }}
                     title={"Create a new account"}
                 />
                 <Text>--OR--</Text>

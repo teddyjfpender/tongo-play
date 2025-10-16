@@ -1,38 +1,28 @@
 import {Account} from "starknet";
-import {Account as TongoAccount, AccountState as TongoAccountState} from "@fatsolutions/tongo-sdk";
 import {Button, Pressable, Text, View} from "react-native";
 import {useEffect, useState} from "react";
 import {AddressView} from "@/components/address-view";
-import TongoAccountView from "@/components/tongo-account-view";
 import {IconSymbol} from "@/components/ui/icon-symbol";
+import {useAccountStore} from "@/stores/useAccountStore";
+import TongoAccountView from "@/components/tongo-account-view";
+import {ProgressButton} from "@/components/progress-button";
 
 export type AccountViewProps = {
     starknetAccount: Account;
-    isDeployed: boolean;
-    tongoAccount: TongoAccount | null;
-    tongoAccountState: TongoAccountState | null;
-
-    onPressDelete: () => void;
-    onPressRefreshBalance: () => void;
-    onPressDeploy: () => void;
-    onPressAssociate: () => void;
-    onPressFund: (amount: bigint) => void;
-    onPressTransfer: (amount: bigint, address: string) => void;
 }
 
-function AccountView({
-                         starknetAccount,
-                         tongoAccount,
-                         tongoAccountState,
-                         isDeployed,
-                         onPressDelete,
-                         onPressDeploy,
-                         onPressAssociate,
-                         onPressFund,
-                         onPressRefreshBalance,
-                         onPressTransfer
-                     }: AccountViewProps) {
+function AccountView({starknetAccount}: AccountViewProps) {
     const [tongoAddress, setTongoAddress] = useState<string | null>(null);
+    const [isDeploying, setIsDeploying] = useState(false);
+    const [isAssociating, setIsAssociating] = useState(false);
+    const {
+        tongoAccount,
+        isDeployed,
+        tongoAccountState,
+        deployStarknetAccount,
+        associateTongoAccount,
+        nuke
+    } = useAccountStore();
 
     useEffect(() => {
         if (tongoAccount) {
@@ -48,7 +38,9 @@ function AccountView({
                 <View style={{flexDirection: "row", justifyContent: "space-between", alignItems: "center"}}>
                     <Text style={{fontWeight: 'bold', fontSize: 24}}>Starknet Account</Text>
 
-                    <Pressable onPress={onPressDelete}>
+                    <Pressable onPress={() => {
+                        void nuke();
+                    }}>
                         <IconSymbol
                             size={24}
                             color="#808080"
@@ -61,14 +53,42 @@ function AccountView({
                 <AddressView address={starknetAccount.address}/>
 
                 {!isDeployed && (
-                    <Button title={"Deploy"} onPress={onPressDeploy}/>
+                    <ProgressButton
+                        title={"Deploy"}
+                        isLoading={isDeploying}
+                        onPress={() => {
+                        const deploy = async () => {
+                            setIsDeploying(true)
+                            try {
+                                await deployStarknetAccount();
+                            } catch (e) {
+                                console.error(e)
+                            }
+                            setIsDeploying(false)
+                        }
+
+                        void deploy()
+                    }}/>
                 )}
             </View>
 
             {!tongoAddress && (
-                <Button
+                <ProgressButton
                     title={"Associate Tongo Account"}
-                    onPress={onPressAssociate}
+                    isLoading={isAssociating}
+                    onPress={() => {
+                        const associate = async () => {
+                            setIsAssociating(true)
+                            try {
+                                await associateTongoAccount();
+                            } catch (e) {
+                                console.log(e)
+                            }
+                            setIsAssociating(false)
+                        }
+
+                        void associate()
+                    }}
                 />
             )}
 
@@ -77,10 +97,6 @@ function AccountView({
                     style={{paddingHorizontal: 16}}
                     tokenName={"STRK"}
                     account={tongoAccount}
-                    state={tongoAccountState}
-                    onRefreshBalance={onPressRefreshBalance}
-                    onFund={onPressFund}
-                    onTransfer={onPressTransfer}
                 />
             )}
 

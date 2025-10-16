@@ -7,66 +7,105 @@ import TongoAddressInput from "@/components/tongo-address-input";
 import {useEffect, useState} from "react";
 import {ProjectivePoint, projectivePointToStarkPoint, pubKeyBase58ToAffine} from "@fatsolutions/tongo-sdk/src/types";
 import {IconSymbol} from "@/components/ui/icon-symbol";
+import {useAccountStore} from "@/stores/useAccountStore";
+import {ProgressButton} from "@/components/progress-button";
 
 export type AccountStateViewProps = {
     style?: StyleProp<ViewStyle>,
     tokenName: string,
-    account: Account,
-    state: AccountState;
-    onRefreshBalance: () => void;
-    onFund: (amount: bigint) => void;
-    onTransfer: (amount: bigint, address: string) => void;
+    account: Account
 }
 
-function TongoAccountView({
-                              style,
-                              tokenName,
-                              account,
-                              state,
-                              onRefreshBalance,
-                              onFund,
-                              onTransfer
-                          }: AccountStateViewProps) {
+function TongoAccountView({style, tokenName, account}: AccountStateViewProps) {
     const [recipient, setRecipient] = useState<string | null>(null);
+    const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
+    const [isRollingOver, setIsRollingOver] = useState<boolean>(false);
+    const [isFunding, setIsFunding] = useState<boolean>(false);
+    const [isTransfering, setIsTransfering] = useState<boolean>(false);
+    const {
+        tongoAccount,
+        tongoAccountState,
+        fund,
+        refreshBalance,
+        rollover,
+        transfer
+    } = useAccountStore();
 
-    // useEffect(() => {
-    //     if (recipient) {
-    //         const pk =  projectivePointToStarkPoint(pubKeyBase58ToAffine(recipient) as ProjectivePoint);
-    //         console.log("Recipient PK", pk);
-    //     }
-    // }, [recipient]);
+    if (!tongoAccountState || !tongoAccount) return null;
 
     return (
         <View style={[style, {gap: 8}]}>
             <Text style={styles.title}>{`Tongo Account (${tokenName})`}</Text>
-            <AddressView address={account.tongoAddress()}/>
+            <AddressView address={tongoAccount.tongoAddress()}/>
 
             <View style={{flexDirection: "row", justifyContent: "space-between"}}>
                 <View>
-                    <BalanceView label={"Balance"} balance={state.balance}/>
-                    <BalanceView label={"Pending"} balance={state.balance}/>
-                    <BalanceView label={"Nonce"} balance={state.nonce}/>
+                    <BalanceView label={"Balance"} balance={tongoAccountState.balance}/>
+                    <BalanceView label={"Pending"} balance={tongoAccountState.pending}/>
+                    <BalanceView label={"Nonce"} balance={tongoAccountState.nonce}/>
                 </View>
 
-                <Button
-                    title={"Refresh"}
-                    onPress={onRefreshBalance}
-                />
-            </View>
+                {tongoAccountState.pending > 0 && (
+                    <ProgressButton
+                        title={"Rollover"}
+                        isLoading={isRollingOver}
+                        onPress={() => {
+                            const rolloverOp = async () => {
+                                setIsRollingOver(true)
+                                try {
+                                    await rollover();
+                                } catch (e) {
+                                    console.error(e)
+                                }
+                                setIsRollingOver(false)
+                            };
 
+                            void rolloverOp()
+                        }}
+                    />
+                )}
+            </View>
+            <ProgressButton
+                title={"Refresh"}
+                isLoading={isRefreshing}
+                onPress={() => {
+                    const refresh = async () => {
+                        setIsRefreshing(true);
+                        try {
+                            await refreshBalance();
+                        } catch (e) {
+                            console.error(e)
+                        }
+                        setIsRefreshing(false);
+                    }
+
+                    void refresh();
+                }}
+            />
             <BalanceInput
                 tokenName={""}
                 action={"Fund"}
                 placeholder={`Fund amount...`}
+                isLoading={isFunding}
                 onAction={(balance) => {
-                    // Tongo balances are integer (32-bit). Do not scale by 1e18.
+                    const fundOp = async (amount: bigint) => {
+                        setIsFunding(true);
+                        try {
+                            await fund(amount);
+                        } catch (e) {
+                            console.error(e)
+                        }
+                        setIsFunding(false);
+                    }
+
+
                     const amount = numberToBigInt(balance, 0);
-                    onFund(amount)
+                    void fundOp(amount)
                 }}/>
 
-            {state.balance > 0 && (
+            {tongoAccountState.balance > 0 && (
                 <>
-                    <Text>Transfer</Text>
+                    <Text style={{fontWeight: "bold"}}>Transfer</Text>
 
                     {!recipient && (
                         <TongoAddressInput
@@ -98,11 +137,23 @@ function TongoAccountView({
                     <BalanceInput
                         tokenName={""}
                         action={"Transfer"}
+                        isLoading={isTransfering}
                         placeholder={`Transferable amount...`}
                         onAction={(balance) => {
+                            const transferOp = async (amount: bigint, recipient: string) => {
+                                setIsTransfering(true)
+                                try {
+                                    await transfer(amount, recipient)
+                                } catch (e) {
+                                    console.error(e)
+                                }
+                                setIsTransfering(false)
+                            };
+
+
                             if (recipient) {
                                 const amount = numberToBigInt(balance, 0);
-                                onTransfer(amount, recipient)
+                                void transferOp(amount, recipient)
                             }
                         }}
                     />

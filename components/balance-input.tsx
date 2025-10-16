@@ -1,14 +1,16 @@
 import {Button, StyleSheet, Text, TextInput, View} from "react-native";
 import {useState} from "react";
+import {ProgressButton} from "@/components/progress-button";
 
 export type BalanceInputProps = {
     placeholder?: string;
     tokenName: string;
     action: string;
+    isLoading: boolean;
     onAction: (balance: number) => void;
 }
 
-function BalanceInput({placeholder, tokenName, action, onAction}: BalanceInputProps) {
+function BalanceInput({placeholder, tokenName, action, isLoading, onAction}: BalanceInputProps) {
     const [balanceText, setBalanceText] = useState("");
 
     return (
@@ -29,8 +31,9 @@ function BalanceInput({placeholder, tokenName, action, onAction}: BalanceInputPr
             </View>
 
             <View style={styles.buttonContainer}>
-                <Button
+                <ProgressButton
                     title={action}
+                    isLoading={isLoading}
                     disabled={balanceText.length === 0}
                     onPress={() => {
                         let number = parseFloat(balanceText);
