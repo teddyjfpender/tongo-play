@@ -1,21 +1,23 @@
-import {Account, CallData, ec, hash, Provider} from "starknet";
+import { Account, Provider } from "starknet";
+import { AccountDerivationConfig, deriveAccountAddress, getStarknetPublicKeyFromPrivate } from "@starkms/key-management";
 
 const starknetAccountFromPrivateKey = (
     privateKey: string,
     classHash: string,
     provider: Provider,
 ): Account => {
-    const starknetPubKey = ec.starkCurve.getStarkKey(privateKey);
+    // Use compressed public key (x-coordinate only)
+    const publicKey = getStarknetPublicKeyFromPrivate(privateKey, true);
 
-    const accountConstructorCalldata = CallData.compile({ publicKey: starknetPubKey });
-    const address = hash.calculateContractAddressFromHash(
-        starknetPubKey,
+    const config: AccountDerivationConfig = {
         classHash,
-        accountConstructorCalldata,
-        0
-    );
+        salt: "0x0",
+    };
 
-    return new Account({provider, address, signer: privateKey});
+    const derivedInfo = deriveAccountAddress(publicKey, config);
+    const address = derivedInfo.address;
+
+    return new Account({ provider, address, signer: privateKey });
 }
 
 export default starknetAccountFromPrivateKey;

@@ -5,11 +5,11 @@ import { getStringItem, removeItem, setStringItem } from "@/utils/secureStorage"
 import starknetAccountFromPrivateKey from "@/utils/starknetAccountFromPrivateKey";
 import { Account as TongoAccount, AccountState as TongoAccountState } from "@fatsolutions/tongo-sdk";
 import { ProjectivePoint, projectivePointToStarkPoint, pubKeyBase58ToAffine } from "@fatsolutions/tongo-sdk/src/types";
-import { deriveStarknetKeyPairs, generateMnemonicWords, joinMnemonicWords } from "@starkms/key-management";
-import { Account, CallData, ec, RpcError, RpcProvider } from "starknet";
+import { deriveAccountAddress, deriveStarknetKeyPairs, generateMnemonicWords, getStarknetPublicKeyFromPrivate, joinMnemonicWords } from "@starkms/key-management";
+import { Account, RpcError, RpcProvider } from "starknet";
 import { create } from "zustand";
 
-const OZ_ACCOUNT_CLASS_HASH = "0x540d7f5ec7ecf317e68d48564934cb99259781b1ee3cedbbc37ec5337f8e688";
+const OZ_ACCOUNT_CLASS_HASH = "0x05b4b537eaa2399e3aa99c4e2e0208ebd6c71bc1467938cd52c798c601e43564";
 const TONGO_STRK_CONTRACT_ADDRESS = "0x00b4cca30f0f641e01140c1c388f55641f1c3fe5515484e622b6cb91d8cee585";
 const OZ_ACCOUNT_STORAGE_KEY = "oz.account.key";
 
@@ -148,12 +148,11 @@ export const useAccountStore = create<AccountState>((set, get) => ({
     },
     createStarknetAccount: async () => {
         const { provider } = get();
+        const privKey = `0x0${randomHex(63)}`;
 
-        const privateKey = `0x0${randomHex(63)}`
-
-        console.log("Private Key: ", privateKey);
-        const account = starknetAccountFromPrivateKey(privateKey, OZ_ACCOUNT_CLASS_HASH, provider);
-        await setStringItem(OZ_ACCOUNT_STORAGE_KEY, privateKey);
+        console.log("Private Key: ", privKey);
+        const account = starknetAccountFromPrivateKey(privKey, OZ_ACCOUNT_CLASS_HASH, provider);
+        await setStringItem(OZ_ACCOUNT_STORAGE_KEY, privKey);
 
         set({starknetAccount: account, isDeployed: false});
         console.log("Account created ", account.address);
@@ -169,13 +168,14 @@ export const useAccountStore = create<AccountState>((set, get) => ({
             throw new Error("No private key found...");
         }
 
-        const pubKey = ec.starkCurve.getStarkKey(privateKey)
-        const constructorCallData = CallData.compile({ publicKey: pubKey });
+        const publicKey = getStarknetPublicKeyFromPrivate(privateKey, true);
+        const derived = deriveAccountAddress(publicKey, { classHash: OZ_ACCOUNT_CLASS_HASH, salt: "0x0" });
+
         console.log("Deploying...")
         const { transaction_hash, contract_address } = await starknetAccount.deployAccount({
-            classHash: OZ_ACCOUNT_CLASS_HASH,
-            constructorCalldata: constructorCallData,
-            addressSalt: pubKey,
+            classHash: derived.classHash,
+            constructorCalldata: derived.constructorCalldata,
+            addressSalt: derived.salt,
         });
         console.log(`Deploying ${transaction_hash}...`)
         const receipt = await provider.waitForTransaction(transaction_hash);
