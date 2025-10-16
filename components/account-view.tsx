@@ -63,42 +63,7 @@ function AccountView({starknetAccount}: AccountViewProps) {
                 )}
             </SectionCard>
 
-            <SectionCard
-                title="Starknet Account"
-                right={
-                    <Pressable onPress={() => { void nuke(); }}>
-                        <IconSymbol size={24} color="#808080" name="trash.fill" />
-                    </Pressable>
-                }
-            >
-                <AddressView address={starknetAccount.address} />
-                {!!(mnemonicWords && mnemonicWords.length) && (
-                    <View>
-                        <Button title="Backup phrase" onPress={() => router.push('/backup')} />
-                    </View>
-                )}
-                {!isDeployed && (
-                    <ProgressButton
-                        title={"Deploy"}
-                        isLoading={isDeploying}
-                        onPress={() => {
-                            const deploy = async () => {
-                                setIsDeploying(true)
-                                try { await deployStarknetAccount(); } catch (e) { console.error(e) }
-                                setIsDeploying(false)
-                            }
-                            void deploy()
-                        }}
-                    />
-                )}
-                {isDeployed && (
-                    <TokenBalance
-                        token={"STRK"}
-                        erc20Address={"0x04718f5a0Fc34cC1AF16A1cdee98fFB20C31f5cD61D6Ab07201858f4287c938D"}
-                        accountAddress={starknetAccount.address}
-                    />
-                )}
-            </SectionCard>
+            {/* Starknet Account summary section removed per updated design */}
         </View>
     );
 }
