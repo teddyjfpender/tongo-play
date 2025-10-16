@@ -36,7 +36,7 @@ function AccountView({starknetAccount}: AccountViewProps) {
 
     return (
         <View style={{
-            gap: 16
+            gap: 8
         }}>
             <View style={{padding: 8}}>
                 <View style={{flexDirection: "row", justifyContent: "space-between", alignItems: "center"}}>
@@ -101,9 +101,17 @@ function AccountView({starknetAccount}: AccountViewProps) {
                 />
             )}
 
+            {isDeployed && (
+                <TokenBalance
+                    token={"STRK"}
+                    erc20Address={"0x04718f5a0Fc34cC1AF16A1cdee98fFB20C31f5cD61D6Ab07201858f4287c938D"}
+                    accountAddress={starknetAccount.address}
+                />
+            )}
+
             {(tongoAccountState && tongoAccount) && (
                 <TongoAccountView
-                    style={{paddingHorizontal: 16}}
+                    style={{paddingHorizontal: 16, marginTop: 16}}
                     tokenName={"STRK"}
                     account={tongoAccount}
                 />

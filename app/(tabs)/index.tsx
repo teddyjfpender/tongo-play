@@ -57,7 +57,9 @@ export default function HomeScreen() {
     let content;
     if (isInitialized) {
         if (starknetAccount) {
-            content = <AccountView starknetAccount={starknetAccount} />
+            content = <ScrollView>
+                <AccountView starknetAccount={starknetAccount} />
+            </ScrollView>
         } else {
             content = (
                 <View style={styles.container}>

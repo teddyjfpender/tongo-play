@@ -20,7 +20,8 @@ const MAPPING = {
     'chevron.right': 'chevron-right',
     'wallet.bifold.fill': 'account-balance-wallet',
     'shield.fill': 'privacy-tip',
-    'trash.fill': 'delete'
+    'trash.fill': 'delete',
+    'arrow.clockwise': 'refresh'
 } as IconMapping;
 
 /**
