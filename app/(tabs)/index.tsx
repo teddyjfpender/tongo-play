@@ -1,8 +1,9 @@
-import {ActivityIndicator, Button, StyleSheet, Text, TextInput, View} from 'react-native';
+import {ActivityIndicator, Animated, Button, StyleSheet, Text, TextInput, View} from 'react-native';
 import {useAccountStore} from "@/stores/useAccountStore";
 import AccountView from "@/components/account-view";
 import {useEffect, useState} from "react";
 import isValidPrivateKey from "@/utils/isValidPrivateKey";
+import ScrollView = Animated.ScrollView;
 
 export default function HomeScreen() {
     const {
@@ -28,7 +29,9 @@ export default function HomeScreen() {
     let content;
     if (isInitialized) {
         if (starknetAccount) {
-            content = <AccountView starknetAccount={starknetAccount} />
+            content = <ScrollView>
+                <AccountView starknetAccount={starknetAccount} />
+            </ScrollView>
         } else {
             content = <View style={styles.restoreAccountContainer}>
                 <Button

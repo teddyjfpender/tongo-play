@@ -1,5 +1,15 @@
 import {Account, AccountState} from "@fatsolutions/tongo-sdk";
-import {Button, Pressable, StyleProp, StyleSheet, Text, TextInput, View, ViewStyle} from "react-native";
+import {
+    ActivityIndicator,
+    Button,
+    Pressable,
+    StyleProp,
+    StyleSheet,
+    Text,
+    TextInput,
+    View,
+    ViewStyle
+} from "react-native";
 import {AddressView} from "@/components/address-view";
 import BalanceInput from "@/components/balance-input";
 import numberToBigInt from "@/utils/numberToBigInt";
@@ -19,7 +29,6 @@ export type AccountStateViewProps = {
 function TongoAccountView({style, tokenName, account}: AccountStateViewProps) {
     const [recipient, setRecipient] = useState<string | null>(null);
     const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
-    const [isRollingOver, setIsRollingOver] = useState<boolean>(false);
     const [isFunding, setIsFunding] = useState<boolean>(false);
     const [isTransfering, setIsTransfering] = useState<boolean>(false);
     const {
@@ -27,7 +36,6 @@ function TongoAccountView({style, tokenName, account}: AccountStateViewProps) {
         tongoAccountState,
         fund,
         refreshBalance,
-        rollover,
         transfer
     } = useAccountStore();
 
@@ -38,50 +46,8 @@ function TongoAccountView({style, tokenName, account}: AccountStateViewProps) {
             <Text style={styles.title}>{`Tongo Account (${tokenName})`}</Text>
             <AddressView address={tongoAccount.tongoAddress()}/>
 
-            <View style={{flexDirection: "row", justifyContent: "space-between"}}>
-                <View>
-                    <BalanceView label={"Balance"} balance={tongoAccountState.balance}/>
-                    <BalanceView label={"Pending"} balance={tongoAccountState.pending}/>
-                    <BalanceView label={"Nonce"} balance={tongoAccountState.nonce}/>
-                </View>
-
-                {tongoAccountState.pending > 0 && (
-                    <ProgressButton
-                        title={"Rollover"}
-                        isLoading={isRollingOver}
-                        onPress={() => {
-                            const rolloverOp = async () => {
-                                setIsRollingOver(true)
-                                try {
-                                    await rollover();
-                                } catch (e) {
-                                    console.error(e)
-                                }
-                                setIsRollingOver(false)
-                            };
-
-                            void rolloverOp()
-                        }}
-                    />
-                )}
-            </View>
-            <ProgressButton
-                title={"Refresh"}
-                isLoading={isRefreshing}
-                onPress={() => {
-                    const refresh = async () => {
-                        setIsRefreshing(true);
-                        try {
-                            await refreshBalance();
-                        } catch (e) {
-                            console.error(e)
-                        }
-                        setIsRefreshing(false);
-                    }
-
-                    void refresh();
-                }}
-            />
+            <Balance />
+            
             <BalanceInput
                 tokenName={""}
                 action={"Fund"}
@@ -164,13 +130,76 @@ function TongoAccountView({style, tokenName, account}: AccountStateViewProps) {
     );
 }
 
-function BalanceView({label, balance}: { label: string, balance: bigint }) {
+function Balance() {
+    const {
+        tongoAccountState,
+        refreshBalance,
+        rollover
+    } = useAccountStore();
+    const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
+    const [isRollingOver, setIsRollingOver] = useState<boolean>(false);
+
+    if (!tongoAccountState) return null;
+
     return (
-        <View style={balanceViewStyles.container}>
-            <Text style={balanceViewStyles.label}>{label}</Text>
-            <Text style={balanceViewStyles.balance}>{balance}</Text>
+        <View>
+            <View style={balanceStyles.header}>
+                <Text>{`Nonce: ${tongoAccountState.nonce}`}</Text>
+
+                <Pressable onPress={() => {
+                    const refreshOp = async () => {
+                        setIsRefreshing(true);
+                        await refreshBalance();
+                        setIsRefreshing(false);
+                    }
+
+                    void refreshOp();
+                }}>
+                    {isRefreshing ? (
+                        <ActivityIndicator
+                            size={16}
+                            color={"black"}
+                        />
+                    ) : (
+                        <IconSymbol name={"arrow.clockwise"} size={16} color={"black"} />
+                    )}
+                </Pressable>
+            </View>
+            <View style={balanceStyles.container}>
+                <View style={balanceStyles.balanceContainer}>
+                    <Text style={balanceStyles.title}>Balance</Text>
+                    <Text style={balanceStyles.balance}>{tongoAccountState.balance}</Text>
+                </View>
+
+                <View style={balanceStyles.balanceContainer}>
+                    <Text style={balanceStyles.title}>Pending</Text>
+                    <Text style={balanceStyles.balance}>{tongoAccountState.pending}</Text>
+
+                    {tongoAccountState.pending > 0 && (
+                        <ProgressButton
+                            title={"Rollover"}
+                            isLoading={isRollingOver}
+                            onPress={() => {
+                                const rolloverOp = async () => {
+                                    setIsRollingOver(true)
+                                    try {
+                                        await rollover();
+                                    } catch (e) {
+                                        console.error(e)
+                                    }
+                                    setIsRollingOver(false)
+                                };
+
+                                void rolloverOp()
+                            }}
+                        />
+                    )}
+
+                </View>
+            </View>
         </View>
-    )
+
+    );
 }
 
 export default TongoAccountView;
@@ -182,15 +211,31 @@ const styles = StyleSheet.create({
     }
 })
 
-const balanceViewStyles = StyleSheet.create({
+const balanceStyles = StyleSheet.create({
+    header: {
+        flexDirection: "row",
+        justifyContent: "space-between",
+        alignItems: "center",
+        borderLeftWidth: 1,
+        borderTopWidth: 1,
+        borderRightWidth: 1,
+        paddingVertical: 4,
+        paddingHorizontal: 8,
+    },
     container: {
         flexDirection: "row",
-        gap: 8
     },
-    label: {
+    balanceContainer: {
+        flex: 1,
+        borderWidth: 1,
+        padding: 8,
+        gap: 4
+    },
+    title: {
         fontWeight: "bold",
+        alignSelf: "center",
     },
     balance: {
-        fontWeight: "light"
+        alignSelf: "center",
     }
 })
