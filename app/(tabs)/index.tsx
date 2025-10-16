@@ -13,7 +13,7 @@ export default function HomeScreen() {
         generateMnemonic,
         restoreFromMnemonic,
     } = useAccountStore();
-    const { setMnemonic, toWords, isValidMnemonic } = useMnemonicStore();
+    const { setMnemonic, toWords, isValidMnemonic, clearMnemonic } = useMnemonicStore();
     const [restoreMnemonic, setRestoreMnemonic] = useState("");
     const words = useMemo(() => toWords(restoreMnemonic.trim()), [restoreMnemonic, toWords]);
     const wordCount = words.length;
@@ -38,8 +38,9 @@ export default function HomeScreen() {
         if (!isRestoreMnemonicValid) return;
         try {
             setIsRestoring(true);
+            // Ensure no mnemonic remains in memory for restored wallets
+            clearMnemonic();
             const parsed = toWords(restoreMnemonic);
-            setMnemonic(parsed);
             await restoreFromMnemonic(parsed);
         } finally {
             setIsRestoring(false);

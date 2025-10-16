@@ -1,16 +1,34 @@
-import { StyleSheet, Text, View, ScrollView } from 'react-native';
+import { StyleSheet, Text, View, ScrollView, Pressable } from 'react-native';
+import * as Clipboard from 'expo-clipboard';
+import { useMemo, useState } from 'react';
 import { useMnemonicStore } from '@/stores/useMnemonicStore';
 
 export default function BackupScreen() {
   const { mnemonicWords } = useMnemonicStore();
 
   const hasMnemonic = Array.isArray(mnemonicWords) && mnemonicWords.length > 0;
+  const phrase = useMemo(() => (hasMnemonic ? mnemonicWords!.join(' ') : ''), [hasMnemonic, mnemonicWords]);
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = async () => {
+    if (!phrase) return;
+    await Clipboard.setStringAsync(phrase);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  };
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <View style={styles.block}>
         <Text style={styles.title}>Backup Your Recovery Phrase</Text>
         <Text style={styles.hint}>Never share these words with anyone.</Text>
+        {hasMnemonic && (
+          <View style={styles.inlineActions}>
+            <Pressable onPress={handleCopy} accessibilityRole="button">
+              <Text style={styles.link}>{copied ? 'Copied!' : 'Copy phrase'}</Text>
+            </Pressable>
+          </View>
+        )}
       </View>
 
       {hasMnemonic ? (
@@ -47,6 +65,15 @@ const styles = StyleSheet.create({
   hint: {
     color: '#888',
   },
+  inlineActions: {
+    flexDirection: 'row',
+    gap: 16,
+    marginTop: 6,
+  },
+  link: {
+    color: '#007AFF',
+    fontWeight: '500',
+  },
   wordsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -76,4 +103,3 @@ const styles = StyleSheet.create({
     color: '#666',
   },
 });
-
