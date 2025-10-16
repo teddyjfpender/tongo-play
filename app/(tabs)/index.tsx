@@ -1,4 +1,4 @@
-import {ActivityIndicator, Button, Pressable, StyleSheet, Text, TextInput, View} from 'react-native';
+import {ActivityIndicator, Button, Pressable, ScrollView, StyleSheet, Text, TextInput, View} from 'react-native';
 import {useAccountStore} from "@/stores/useAccountStore";
 import {useMnemonicStore} from "@/stores/useMnemonicStore";
 import AccountView from "@/components/account-view";

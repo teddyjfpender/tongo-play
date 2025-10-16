@@ -8,6 +8,7 @@ import {useMnemonicStore} from "@/stores/useMnemonicStore";
 import TongoAccountView from "@/components/tongo-account-view";
 import {ProgressButton} from "@/components/progress-button";
 import {useRouter} from "expo-router";
+import TokenBalance from "@/components/token-balance";
 
 export type AccountViewProps = {
     starknetAccount: Account;
