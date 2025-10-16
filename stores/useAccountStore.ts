@@ -4,9 +4,10 @@ import randomHex from "@/utils/randomHex";
 import { getStringItem, removeItem, setStringItem } from "@/utils/secureStorage";
 import starknetAccountFromPrivateKey from "@/utils/starknetAccountFromPrivateKey";
 import { Account as TongoAccount, AccountState as TongoAccountState } from "@fatsolutions/tongo-sdk";
+import { ProjectivePoint, projectivePointToStarkPoint, pubKeyBase58ToAffine } from "@fatsolutions/tongo-sdk/src/types";
+import { deriveStarknetKeyPairs, generateMnemonicWords, joinMnemonicWords } from "@starkms/key-management";
 import { Account, CallData, ec, RpcError, RpcProvider } from "starknet";
 import { create } from "zustand";
-import {ProjectivePoint, projectivePointToStarkPoint, pubKeyBase58ToAffine} from "@fatsolutions/tongo-sdk/src/types";
 
 const OZ_ACCOUNT_CLASS_HASH = "0x540d7f5ec7ecf317e68d48564934cb99259781b1ee3cedbbc37ec5337f8e688";
 const TONGO_STRK_CONTRACT_ADDRESS = "0x00b4cca30f0f641e01140c1c388f55641f1c3fe5515484e622b6cb91d8cee585";
@@ -21,6 +22,12 @@ export interface AccountState {
     tongoAccountState: TongoAccountState | null;
 
     initialize: () => Promise<void>;
+
+    // "create wallet"
+    generateMnemonic: () => string[];
+
+    // "restore wallet"
+    restoreFromMnemonic: (mnemonic: string[]) => void;
 
     restoreStarknetAccount: (privateKey: string) => Promise<void>;
     createStarknetAccount: () => Promise<void>;
@@ -85,6 +92,39 @@ export const useAccountStore = create<AccountState>((set, get) => ({
             set({starknetAccount: null, isInitialized: true});
             console.log("No Account from local storage");
         }
+    },
+
+    generateMnemonic: () => {
+        return generateMnemonicWords()
+    },
+
+    restoreFromMnemonic: async (mnemonic: string[]) => {
+        const { provider } = get();
+
+        const mnemonicPhrase = joinMnemonicWords(mnemonic)
+
+        // derive regular Starknet key pair for OZ Account Contract
+        const args = {accountIndex: 0, addressIndex: 0}
+        const accountContractKeyPairs = deriveStarknetKeyPairs(args, mnemonicPhrase, true)
+
+        // derive Tongo key pair
+        const argsTongo = {accountIndex: 0, addressIndex: 0, coinType: 5454}
+        const tongoKeyPairs = deriveStarknetKeyPairs(argsTongo, mnemonicPhrase, false)
+
+        // store setters
+        // starknet account data
+        const account = starknetAccountFromPrivateKey(accountContractKeyPairs.spendingKeyPair.privateSpendingKey, OZ_ACCOUNT_CLASS_HASH, provider);
+        await setStringItem(OZ_ACCOUNT_STORAGE_KEY, accountContractKeyPairs.spendingKeyPair.privateSpendingKey);
+
+        set({starknetAccount: account, isDeployed: false});
+        console.log("Account created ", account.address);
+
+        // tongo account data
+        const tongoAccount = new TongoAccount(tongoKeyPairs.spendingKeyPair.privateSpendingKey, TONGO_STRK_CONTRACT_ADDRESS, provider);
+        console.log("Tongo Account: ", tongoAccount.tongoAddress());
+
+        const balance = await tongoAccount.state();
+        set({tongoAccount: tongoAccount, tongoAccountState: balance});
     },
 
     restoreStarknetAccount: async (privateKey: string) => {
