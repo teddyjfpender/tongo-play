@@ -5,7 +5,7 @@ import BalanceInput from "@/components/balance-input";
 import numberToBigInt from "@/utils/numberToBigInt";
 import TongoAddressInput from "@/components/tongo-address-input";
 import {useEffect, useState} from "react";
-import {pubKeyBase58ToAffine} from "@fatsolutions/tongo-sdk/src/types";
+import {ProjectivePoint, projectivePointToStarkPoint, pubKeyBase58ToAffine} from "@fatsolutions/tongo-sdk/src/types";
 import {IconSymbol} from "@/components/ui/icon-symbol";
 
 export type AccountStateViewProps = {
@@ -29,31 +29,29 @@ function TongoAccountView({
                           }: AccountStateViewProps) {
     const [recipient, setRecipient] = useState<string | null>(null);
 
-    useEffect(() => {
-        if (recipient) {
-            const pk =  pubKeyBase58ToAffine(recipient);
-            console.log("PK", pk);
-        }
-    }, [recipient]);
+    // useEffect(() => {
+    //     if (recipient) {
+    //         const pk =  projectivePointToStarkPoint(pubKeyBase58ToAffine(recipient) as ProjectivePoint);
+    //         console.log("Recipient PK", pk);
+    //     }
+    // }, [recipient]);
 
     return (
         <View style={[style, {gap: 8}]}>
             <Text style={styles.title}>{`Tongo Account (${tokenName})`}</Text>
             <AddressView address={account.tongoAddress()}/>
 
-            <View style={{flex: 1, flexDirection: "row", justifyContent: "space-between"}}>
+            <View style={{flexDirection: "row", justifyContent: "space-between"}}>
                 <View>
                     <BalanceView label={"Balance"} balance={state.balance}/>
                     <BalanceView label={"Pending"} balance={state.balance}/>
                     <BalanceView label={"Nonce"} balance={state.nonce}/>
                 </View>
 
-                <View style={{alignItems: "flex-start"}}>
-                    <Button
-                        title={"Refresh"}
-                        onPress={onRefreshBalance}
-                    />
-                </View>
+                <Button
+                    title={"Refresh"}
+                    onPress={onRefreshBalance}
+                />
             </View>
 
             <BalanceInput

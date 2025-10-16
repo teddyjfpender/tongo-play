@@ -6,10 +6,10 @@ import starknetAccountFromPrivateKey from "@/utils/starknetAccountFromPrivateKey
 import { Account as TongoAccount, AccountState as TongoAccountState } from "@fatsolutions/tongo-sdk";
 import { Account, CallData, ec, RpcError, RpcProvider } from "starknet";
 import { create } from "zustand";
-import {pubKeyBase58ToAffine} from "@fatsolutions/tongo-sdk/src/types";
+import {ProjectivePoint, projectivePointToStarkPoint, pubKeyBase58ToAffine} from "@fatsolutions/tongo-sdk/src/types";
 
 const OZ_ACCOUNT_CLASS_HASH = "0x540d7f5ec7ecf317e68d48564934cb99259781b1ee3cedbbc37ec5337f8e688";
-const TONGO_CONTRACT_ADDRESS = "0x00b4cca30f0f641e01140c1c388f55641f1c3fe5515484e622b6cb91d8cee585";
+const TONGO_STRK_CONTRACT_ADDRESS = "0x00b4cca30f0f641e01140c1c388f55641f1c3fe5515484e622b6cb91d8cee585";
 const OZ_ACCOUNT_STORAGE_KEY = "oz.account.key";
 
 export interface AccountState {
@@ -81,8 +81,6 @@ export const useAccountStore = create<AccountState>((set, get) => ({
             if (deployed) {
                 await associateTongoAccount();
             }
-
-            console.log("Account from local storage: ", account.address);
         } else {
             set({starknetAccount: null, isInitialized: true});
             console.log("No Account from local storage");
@@ -151,8 +149,7 @@ export const useAccountStore = create<AccountState>((set, get) => ({
 
         const tongoPrivateKey = await deriveTongoPrivateKey(starknetAccount);
         console.log("Tongo Private Key: ", tongoPrivateKey);
-        const tongoAccount = new TongoAccount(tongoPrivateKey, TONGO_CONTRACT_ADDRESS, provider);
-        console.log("PK", tongoAccount.publicKey);
+        const tongoAccount = new TongoAccount(tongoPrivateKey, TONGO_STRK_CONTRACT_ADDRESS, provider);
         console.log("Tongo Account: ", tongoAccount.tongoAddress());
 
         const balance = await tongoAccount.state();
@@ -190,7 +187,7 @@ export const useAccountStore = create<AccountState>((set, get) => ({
         if (!tongoAccount) throw new Error("Tongo account not found...");
 
         assertAmountInRange(amount);
-        const pubKey = pubKeyBase58ToAffine(recipientAddress);
+        const pubKey = projectivePointToStarkPoint(pubKeyBase58ToAffine(recipientAddress) as ProjectivePoint);
         console.log(`Initiate transfer of ${amount} to ${recipientAddress}`)
         const transferOp = await tongoAccount.transfer({
             to: pubKey,
@@ -198,7 +195,7 @@ export const useAccountStore = create<AccountState>((set, get) => ({
         })
 
         console.log("Execute tx on starknet...")
-        const tx = await starknetAccount.execute([transferOp.toCalldata()]);
+        const tx = await starknetAccount.execute(transferOp.toCalldata());
         console.log("Waiting for:", tx.transaction_hash);
         await provider.waitForTransaction(tx.transaction_hash);
         console.log("TX Completed");
