@@ -19,7 +19,8 @@ const MAPPING = {
     'chevron.left.forwardslash.chevron.right': 'code',
     'chevron.right': 'chevron-right',
     'wallet.bifold.fill': 'account-balance-wallet',
-    'shield.fill': 'privacy-tip'
+    'shield.fill': 'privacy-tip',
+    'trash.fill': 'delete'
 } as IconMapping;
 
 /**

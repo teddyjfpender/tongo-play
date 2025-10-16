@@ -1,4 +1,4 @@
-import {Button, StyleSheet, Text, TextInput, View} from 'react-native';
+import {ActivityIndicator, Button, StyleSheet, Text, TextInput, View} from 'react-native';
 import {useAccountStore} from "@/stores/useAccountStore";
 import AccountView from "@/components/account-view";
 import {useEffect, useState} from "react";
@@ -17,6 +17,8 @@ export default function HomeScreen() {
         deployStarknetAccount,
         associateTongoAccount,
         fund,
+        transfer,
+        refreshBalance,
         nuke
     } = useAccountStore();
     const [restorePrivateKey, setRestorePrivateKey] = useState("");
@@ -32,56 +34,64 @@ export default function HomeScreen() {
         setIsPrivateKeyValid(isValidPrivateKey(restorePrivateKey))
     }, [restorePrivateKey]);
 
-    return (
-        <View style={styles.homeContainer}>
-            <View style={styles.accountContainer}>
-                {starknetAccount !== null ? (
-                    <AccountView
-                        starknetAccount={starknetAccount}
-                        tongoAccount={tongoAccount}
-                        tongoAccountState={tongoAccountState}
-                        isDeployed={isDeployed}
-                        onPressDeploy={() => {
-                            void deployStarknetAccount();
-                        }}
-                        onPressAssociate={() => {
-                            void associateTongoAccount();
-                        }}
-                        onPressFund={(amount) => {
-                            void fund(amount);
-                        }}
-                    />
-                ) : (
-                    <View style={styles.restoreAccountContainer}>
-                        <Button
-                            onPress={createStarknetAccount}
-                            title={"Create a new account"}
-                        />
-                        <Text>--OR--</Text>
-                        <TextInput
-                            style={styles.restorePrivateKeyField}
-                            value={restorePrivateKey}
-                            placeholder={"0xprivatekey"}
-                            onChangeText={setRestorePrivateKey}
-                        />
-                        <Button
-                            onPress={() => {
-                                void restoreStarknetAccount(restorePrivateKey)
-                            }}
-                            disabled={!isPrivateKeyValid}
-                            title={"Restore account"}
-                        />
-                    </View>
-                )}
-            </View>
-
-            {starknetAccount !== null && (
+    let content;
+    if (isInitialized) {
+        if (starknetAccount) {
+            content = <AccountView
+                starknetAccount={starknetAccount}
+                tongoAccount={tongoAccount}
+                tongoAccountState={tongoAccountState}
+                isDeployed={isDeployed}
+                onPressDelete={() => {
+                    void nuke();
+                }}
+                onPressRefreshBalance={() => {
+                    void refreshBalance();
+                }}
+                onPressDeploy={() => {
+                    void deployStarknetAccount();
+                }}
+                onPressAssociate={() => {
+                    void associateTongoAccount();
+                }}
+                onPressFund={(amount) => {
+                    void fund(amount);
+                }}
+                onPressTransfer={(amount, address) => {
+                    void transfer(amount, address);
+                }}
+            />
+        } else {
+            content = <View style={styles.restoreAccountContainer}>
                 <Button
-                    title={"Remove Account"}
-                    onPress={nuke}/>
-            )}
-        </View>
-    );
+                    onPress={createStarknetAccount}
+                    title={"Create a new account"}
+                />
+                <Text>--OR--</Text>
+                <TextInput
+                    style={styles.restorePrivateKeyField}
+                    value={restorePrivateKey}
+                    placeholder={"0xprivatekey"}
+                    onChangeText={setRestorePrivateKey}
+                />
+                <Button
+                    onPress={() => {
+                        void restoreStarknetAccount(restorePrivateKey)
+                    }}
+                    disabled={!isPrivateKeyValid}
+                    title={"Restore account"}
+                />
+            </View>
+        }
+    } else {
+        content = (
+            <View style={{flex: 1, width: "100%", height: "100%", justifyContent: "center"}}>
+                <ActivityIndicator size={"large"}/>
+            </View>
+        )
+    }
+
+    return (content);
 }
 
 

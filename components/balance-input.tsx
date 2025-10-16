@@ -27,17 +27,21 @@ function BalanceInput({placeholder, tokenName, action, onAction}: BalanceInputPr
                 />
                 <Text style={styles.tokenName}>{tokenName}</Text>
             </View>
-            <Button
-                title={action}
-                disabled={balanceText.length === 0}
-                onPress={() => {
-                    let number = parseFloat(balanceText);
-                    if (!isNaN(number)) {
-                        setBalanceText("");
-                        onAction(number);
-                    }
-                }}
-            />
+
+            <View style={styles.buttonContainer}>
+                <Button
+                    title={action}
+                    disabled={balanceText.length === 0}
+                    onPress={() => {
+                        let number = parseFloat(balanceText);
+                        if (!isNaN(number)) {
+                            setBalanceText("");
+                            onAction(number);
+                        }
+                    }}
+                />
+            </View>
+
         </View>
     );
 }
@@ -47,11 +51,12 @@ export default BalanceInput;
 const styles = StyleSheet.create({
     container: {
         flexDirection: "row",
+        alignItems: "center",
     },
     inputContainer: {
-        flex: 1,
-        flexDirection: "row",
+        flex: 0.7,
         alignItems: "center",
+        flexDirection: "row",
     },
     tokenName: {
         position: "absolute",
@@ -59,9 +64,12 @@ const styles = StyleSheet.create({
     },
     input: {
         width: "100%",
-        height: "100%",
         paddingRight: 64,
         paddingLeft: 16,
+        paddingVertical: 16,
         backgroundColor: "#c9ccc9",
-    }
+    },
+    buttonContainer: {
+        flex: 0.3,
+    },
 })

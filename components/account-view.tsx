@@ -1,9 +1,10 @@
 import {Account} from "starknet";
 import {Account as TongoAccount, AccountState as TongoAccountState} from "@fatsolutions/tongo-sdk";
-import {Button, Text, View} from "react-native";
+import {Button, Pressable, Text, View} from "react-native";
 import {useEffect, useState} from "react";
 import {AddressView} from "@/components/address-view";
 import TongoAccountView from "@/components/tongo-account-view";
+import {IconSymbol} from "@/components/ui/icon-symbol";
 
 export type AccountViewProps = {
     starknetAccount: Account;
@@ -11,9 +12,12 @@ export type AccountViewProps = {
     tongoAccount: TongoAccount | null;
     tongoAccountState: TongoAccountState | null;
 
+    onPressDelete: () => void;
+    onPressRefreshBalance: () => void;
     onPressDeploy: () => void;
     onPressAssociate: () => void;
     onPressFund: (amount: bigint) => void;
+    onPressTransfer: (amount: bigint, address: string) => void;
 }
 
 function AccountView({
@@ -21,9 +25,12 @@ function AccountView({
                          tongoAccount,
                          tongoAccountState,
                          isDeployed,
+                         onPressDelete,
                          onPressDeploy,
                          onPressAssociate,
-                         onPressFund
+                         onPressFund,
+                         onPressRefreshBalance,
+                         onPressTransfer
                      }: AccountViewProps) {
     const [tongoAddress, setTongoAddress] = useState<string | null>(null);
 
@@ -38,7 +45,19 @@ function AccountView({
             gap: 16
         }}>
             <View style={{padding: 8}}>
-                <Text style={{fontWeight: 'bold', fontSize: 24}}>Starknet Account</Text>
+                <View style={{flexDirection: "row", justifyContent: "space-between", alignItems: "center"}}>
+                    <Text style={{fontWeight: 'bold', fontSize: 24}}>Starknet Account</Text>
+
+                    <Pressable onPress={onPressDelete}>
+                        <IconSymbol
+                            size={24}
+                            color="#808080"
+                            name="trash.fill"
+                        />
+                    </Pressable>
+
+                </View>
+
                 <AddressView address={starknetAccount.address}/>
 
                 {!isDeployed && (
@@ -59,7 +78,9 @@ function AccountView({
                     tokenName={"STRK"}
                     account={tongoAccount}
                     state={tongoAccountState}
+                    onRefreshBalance={onPressRefreshBalance}
                     onFund={onPressFund}
+                    onTransfer={onPressTransfer}
                 />
             )}
 
