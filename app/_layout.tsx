@@ -18,6 +18,9 @@ export default function RootLayout() {
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="onboarding" options={{ title: 'Welcome' }} />
         <Stack.Screen name="backup" options={{ title: 'Backup Phrase' }} />
+        <Stack.Screen name="fund" options={{ title: 'Fund' }} />
+        <Stack.Screen name="transfer" options={{ title: 'Transfer' }} />
+        <Stack.Screen name="withdraw" options={{ title: 'Withdraw' }} />
         <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
       </Stack>
       <StatusBar style="auto" />

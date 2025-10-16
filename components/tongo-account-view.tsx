@@ -23,7 +23,7 @@ import OperationCard from "@/components/ui/operation-card";
 import AddressPill from "@/components/ui/address-pill";
 import { Collapsible } from "@/components/ui/collapsible";
 import ActionRow from "@/components/ui/action-row";
-import OperationModal from "@/components/ui/operation-modal";
+import { useRouter } from 'expo-router';
 
 export type AccountStateViewProps = {
     style?: StyleProp<ViewStyle>,
@@ -37,9 +37,7 @@ function TongoAccountView({style, tokenName, account}: AccountStateViewProps) {
     const [isTransfering, setIsTransfering] = useState<boolean>(false);
     const [isRollingOver, setIsRollingOver] = useState<boolean>(false);
     const [isWithdrawing, setIsWithdrawing] = useState<boolean>(false);
-    const [showFund, setShowFund] = useState(false);
-    const [showTransfer, setShowTransfer] = useState(false);
-    const [showWithdraw, setShowWithdraw] = useState(false);
+    const router = useRouter();
     const {
         tongoAccount,
         tongoAccountState,
@@ -82,10 +80,10 @@ function TongoAccountView({style, tokenName, account}: AccountStateViewProps) {
 
             <ActionRow
                 actions={[
-                    { key: 'fund', icon: 'plus.circle.fill', label: 'Fund', onPress: () => setShowFund(true) },
-                    { key: 'transfer', icon: 'paperplane.fill', label: 'Transfer', onPress: () => setShowTransfer(true), disabled: tongoAccountState.balance <= 0 },
+                    { key: 'fund', icon: 'plus.circle.fill', label: 'Fund', onPress: () => router.push('/fund') },
+                    { key: 'transfer', icon: 'paperplane.fill', label: 'Transfer', onPress: () => router.push('/transfer'), disabled: tongoAccountState.balance <= 0 },
                     { key: 'rollover', icon: 'arrow.clockwise', label: 'Rollover', onPress: async () => { setIsRollingOver(true); try { await rollover(); } finally { setIsRollingOver(false); } }, disabled: tongoAccountState.pending <= 0 },
-                    { key: 'withdraw', icon: 'arrow.down.circle.fill', label: 'Withdraw', onPress: () => setShowWithdraw(true), disabled: tongoAccountState.balance <= 0 },
+                    { key: 'withdraw', icon: 'arrow.down.circle.fill', label: 'Withdraw', onPress: () => router.push('/withdraw'), disabled: tongoAccountState.balance <= 0 },
                 ]}
             />
 
@@ -106,80 +104,7 @@ function TongoAccountView({style, tokenName, account}: AccountStateViewProps) {
                 </View>
             </Collapsible>
 
-            {/* Fund Modal */}
-            <OperationModal title="Fund" visible={showFund} onClose={() => setShowFund(false)}>
-                <BalanceInput
-                    tokenName={""}
-                    action={"Fund"}
-                    placeholder={`Amount to fund...`}
-                    isLoading={isFunding}
-                    onAction={(balance) => {
-                        const fundOp = async (amount: bigint) => {
-                            setIsFunding(true);
-                            try { await fund(amount); } catch (e) { console.error(e) }
-                            setIsFunding(false); setShowFund(false);
-                        }
-                        const amount = numberToBigInt(balance, 0);
-                        void fundOp(amount)
-                    }}
-                />
-            </OperationModal>
-
-            {/* Transfer Modal */}
-            <OperationModal title="Transfer" visible={showTransfer} onClose={() => setShowTransfer(false)}>
-                {!recipient && (
-                    <TongoAddressInput placeholder={"Type recipient..."} setRecipient={setRecipient} />
-                )}
-                {recipient && (
-                    <>
-                        <View style={{flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center'}}>
-                            <Text>{"Recipient:"}</Text>
-                            <Pressable onPress={() => { setRecipient(null) }}>
-                                <IconSymbol size={16} color="#808080" name="trash.fill" />
-                            </Pressable>
-                        </View>
-                        <Text>{recipient}</Text>
-                    </>
-                )}
-                <BalanceInput
-                    tokenName={""}
-                    action={"Transfer"}
-                    isLoading={isTransfering}
-                    placeholder={`Amount to transfer...`}
-                    onAction={(balance) => {
-                        const transferOp = async (amount: bigint, recipient: string) => {
-                            setIsTransfering(true)
-                            try { await transfer(amount, recipient) } catch (e) { console.error(e) }
-                            setIsTransfering(false); setShowTransfer(false);
-                        };
-                        if (recipient) {
-                            const amount = numberToBigInt(balance, 0);
-                            void transferOp(amount, recipient)
-                        }
-                    }}
-                />
-            </OperationModal>
-
-            {/* Withdraw Modal */}
-            <OperationModal title="Withdraw" visible={showWithdraw} onClose={() => setShowWithdraw(false)}>
-                <BalanceInput
-                    tokenName={""}
-                    action={"Withdraw"}
-                    isLoading={isWithdrawing}
-                    placeholder={`Amount to withdraw...`}
-                    onAction={(balance) => {
-                        const withdrawOp = async (amount: bigint) => {
-                            setIsWithdrawing(true)
-                            try { await withdraw(amount) } catch (e) { console.error(e) }
-                            setIsWithdrawing(false); setShowWithdraw(false);
-                        };
-                        const amount = numberToBigInt(balance, 0);
-                        if (amount <= tongoAccountState?.balance) {
-                            void withdrawOp(amount)
-                        }
-                    }}
-                />
-            </OperationModal>
+            {/* Operation modals removed: operations now have full-screen routes */}
         </View>
     );
 }
