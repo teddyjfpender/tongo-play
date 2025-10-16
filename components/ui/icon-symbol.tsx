@@ -21,7 +21,10 @@ const MAPPING = {
     'wallet.bifold.fill': 'account-balance-wallet',
     'shield.fill': 'privacy-tip',
     'trash.fill': 'delete',
-    'arrow.clockwise': 'refresh'
+    'arrow.clockwise': 'refresh',
+    'plus.circle.fill': 'add-circle',
+    'arrow.up.right.circle.fill': 'send',
+    'arrow.down.circle.fill': 'download'
 } as IconMapping;
 
 /**

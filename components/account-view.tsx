@@ -8,6 +8,7 @@ import {useMnemonicStore} from "@/stores/useMnemonicStore";
 import TongoAccountView from "@/components/tongo-account-view";
 import {ProgressButton} from "@/components/progress-button";
 import {useRouter} from "expo-router";
+import SectionCard from "@/components/ui/section-card";
 import TokenBalance from "@/components/token-balance";
 
 export type AccountViewProps = {
@@ -36,90 +37,69 @@ function AccountView({starknetAccount}: AccountViewProps) {
     }, [tongoAccount, setTongoAddress]);
 
     return (
-        <View style={{
-            gap: 8
-        }}>
-            <View style={{padding: 8}}>
-                <View style={{flexDirection: "row", justifyContent: "space-between", alignItems: "center"}}>
-                    <Text style={{fontWeight: 'bold', fontSize: 24}}>Starknet Account</Text>
-
-                    <Pressable onPress={() => {
-                        void nuke();
-                    }}>
-                        <IconSymbol
-                            size={24}
-                            color="#808080"
-                            name="trash.fill"
-                        />
+        <View style={{ gap: 12, padding: 8 }}>
+            <SectionCard
+                title="Starknet Account"
+                right={
+                    <Pressable onPress={() => { void nuke(); }}>
+                        <IconSymbol size={24} color="#808080" name="trash.fill" />
                     </Pressable>
-
-                </View>
-
-                <AddressView address={starknetAccount.address}/>
+                }
+            >
+                <AddressView address={starknetAccount.address} />
                 {!!(mnemonicWords && mnemonicWords.length) && (
-                    <View style={{ marginTop: 8 }}>
+                    <View>
                         <Button title="Backup phrase" onPress={() => router.push('/backup')} />
                     </View>
                 )}
-
                 {!isDeployed && (
                     <ProgressButton
                         title={"Deploy"}
                         isLoading={isDeploying}
                         onPress={() => {
-                        const deploy = async () => {
-                            setIsDeploying(true)
-                            try {
-                                await deployStarknetAccount();
-                            } catch (e) {
-                                console.error(e)
+                            const deploy = async () => {
+                                setIsDeploying(true)
+                                try { await deployStarknetAccount(); } catch (e) { console.error(e) }
+                                setIsDeploying(false)
                             }
-                            setIsDeploying(false)
-                        }
-
-                        void deploy()
-                    }}/>
+                            void deploy()
+                        }}
+                    />
                 )}
-            </View>
+                {isDeployed && (
+                    <TokenBalance
+                        token={"STRK"}
+                        erc20Address={"0x04718f5a0Fc34cC1AF16A1cdee98fFB20C31f5cD61D6Ab07201858f4287c938D"}
+                        accountAddress={starknetAccount.address}
+                    />
+                )}
+            </SectionCard>
 
-            {!tongoAddress && (
-                <ProgressButton
-                    title={"Associate Tongo Account"}
-                    isLoading={isAssociating}
-                    onPress={() => {
-                        const associate = async () => {
-                            setIsAssociating(true)
-                            try {
-                                await associateTongoAccount();
-                            } catch (e) {
-                                console.log(e)
+            <SectionCard title="Confidential (STRK)">
+                {!tongoAddress && (
+                    <ProgressButton
+                        title={"Associate Tongo Account"}
+                        isLoading={isAssociating}
+                        onPress={() => {
+                            const associate = async () => {
+                                setIsAssociating(true)
+                                try { await associateTongoAccount(); } catch (e) { console.log(e) }
+                                setIsAssociating(false)
                             }
-                            setIsAssociating(false)
-                        }
+                            void associate()
+                        }}
+                    />
+                )}
 
-                        void associate()
-                    }}
-                />
-            )}
-
-            {isDeployed && (
-                <TokenBalance
-                    token={"STRK"}
-                    erc20Address={"0x04718f5a0Fc34cC1AF16A1cdee98fFB20C31f5cD61D6Ab07201858f4287c938D"}
-                    accountAddress={starknetAccount.address}
-                />
-            )}
-
-            {(tongoAccountState && tongoAccount) && (
-                <TongoAccountView
-                    style={{paddingHorizontal: 16, marginTop: 16}}
-                    tokenName={"STRK"}
-                    account={tongoAccount}
-                />
-            )}
-
+                {(tongoAccountState && tongoAccount) && (
+                    <TongoAccountView
+                        style={{ paddingHorizontal: 0 }}
+                        tokenName={"STRK"}
+                        account={tongoAccount}
+                    />
+                )}
+            </SectionCard>
         </View>
-
     );
 }
 

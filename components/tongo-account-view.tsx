@@ -19,6 +19,9 @@ import {ProjectivePoint, projectivePointToStarkPoint, pubKeyBase58ToAffine} from
 import {IconSymbol} from "@/components/ui/icon-symbol";
 import {useAccountStore} from "@/stores/useAccountStore";
 import {ProgressButton} from "@/components/progress-button";
+import OperationCard from "@/components/ui/operation-card";
+import ActionRow from "@/components/ui/action-row";
+import OperationModal from "@/components/ui/operation-modal";
 
 export type AccountStateViewProps = {
     style?: StyleProp<ViewStyle>,
@@ -30,132 +33,154 @@ function TongoAccountView({style, tokenName, account}: AccountStateViewProps) {
     const [recipient, setRecipient] = useState<string | null>(null);
     const [isFunding, setIsFunding] = useState<boolean>(false);
     const [isTransfering, setIsTransfering] = useState<boolean>(false);
+    const [isRollingOver, setIsRollingOver] = useState<boolean>(false);
     const [isWithdrawing, setIsWithdrawing] = useState<boolean>(false);
+    const [showFund, setShowFund] = useState(false);
+    const [showTransfer, setShowTransfer] = useState(false);
+    const [showWithdraw, setShowWithdraw] = useState(false);
     const {
         tongoAccount,
         tongoAccountState,
         fund,
         withdraw,
-        transfer
+        transfer,
+        rollover
     } = useAccountStore();
 
     if (!tongoAccountState || !tongoAccount) return null;
 
     return (
-        <View style={[style, {gap: 8}]}>
-            <Text style={styles.title}>{`Confidential (${tokenName})`}</Text>
+        <View style={[style, {gap: 12}] }>
             <AddressView address={tongoAccount.tongoAddress()}/>
 
-            <Balance />
+            <ActionRow
+                actions={[
+                    { key: 'fund', icon: 'plus.circle.fill', label: 'Fund', onPress: () => setShowFund(true) },
+                    { key: 'transfer', icon: 'paperplane.fill', label: 'Transfer', onPress: () => setShowTransfer(true), disabled: tongoAccountState.balance <= 0 },
+                    { key: 'rollover', icon: 'arrow.clockwise', label: 'Rollover', onPress: async () => { setIsRollingOver(true); try { await rollover(); } finally { setIsRollingOver(false); } }, disabled: tongoAccountState.pending <= 0 },
+                    { key: 'withdraw', icon: 'arrow.down.circle.fill', label: 'Withdraw', onPress: () => setShowWithdraw(true), disabled: tongoAccountState.balance <= 0 },
+                ]}
+            />
 
-            <BalanceInput
-                tokenName={""}
-                action={"Fund"}
-                placeholder={`Fund amount...`}
-                isLoading={isFunding}
-                onAction={(balance) => {
-                    const fundOp = async (amount: bigint) => {
-                        setIsFunding(true);
-                        try {
-                            await fund(amount);
-                        } catch (e) {
-                            console.error(e)
+            <OperationCard title={"Summary"}>
+                <Balance />
+            </OperationCard>
+
+            <OperationCard
+                title={"Fund"}
+                description={"Move public STRK into your confidential balance."}
+            >
+                <Text>{"Move funds into Tongo when you want privacy."}</Text>
+            </OperationCard>
+
+            {tongoAccountState.balance > 0 && (
+                <OperationCard
+                    title={"Transfer"}
+                    description={"Send confidential STRK to another Tongo address."}
+                >
+                    <Text>{"Send confidential STRK to another Tongo address."}</Text>
+                </OperationCard>
+            )}
+
+            {tongoAccountState.pending > 0 && (
+                <OperationCard
+                    title={"Rollover"}
+                    description={"Consolidate pending outputs into your spendable balance."}
+                    actionLabel={"Rollover"}
+                    loading={isRollingOver}
+                    onAction={() => {
+                        const run = async () => {
+                            setIsRollingOver(true);
+                            try { await rollover(); } catch (e) { console.error(e); }
+                            setIsRollingOver(false);
+                        };
+                        void run();
+                    }}
+                >
+                    <Text>{`You have ${tongoAccountState.pending} pending.`}</Text>
+                </OperationCard>
+            )}
+
+            {tongoAccountState.balance > 0 && (
+                <OperationCard title={"Withdraw"} description={"Exit back to your Starknet account."}>
+                    <Text>{"Withdraw converts your confidential balance back to your public STRK."}</Text>
+                </OperationCard>
+            )}
+
+            {/* Fund Modal */}
+            <OperationModal title="Fund" visible={showFund} onClose={() => setShowFund(false)}>
+                <BalanceInput
+                    tokenName={""}
+                    action={"Fund"}
+                    placeholder={`Amount to fund...`}
+                    isLoading={isFunding}
+                    onAction={(balance) => {
+                        const fundOp = async (amount: bigint) => {
+                            setIsFunding(true);
+                            try { await fund(amount); } catch (e) { console.error(e) }
+                            setIsFunding(false); setShowFund(false);
                         }
-                        setIsFunding(false);
-                    }
+                        const amount = numberToBigInt(balance, 0);
+                        void fundOp(amount)
+                    }}
+                />
+            </OperationModal>
 
-
-                    const amount = numberToBigInt(balance, 0);
-                    void fundOp(amount)
-                }}/>
-
-            {/*Transfer*/}
-            {tongoAccountState.balance > 0 && (
-                <>
-                    <Text style={{fontWeight: "bold"}}>Transfer</Text>
-
-                    {!recipient && (
-                        <TongoAddressInput
-                            placeholder={"Type recipient..."}
-                            setRecipient={setRecipient}
-                        />
-                    )}
-
-                    {recipient && (
-                        <>
-                            <View style={{flexDirection: "row", justifyContent: "space-between"}}>
-                                <Text>{"Recipient:"}</Text>
-
-                                <Pressable onPress={() => {
-                                    setRecipient(null)
-                                }}>
-                                    <IconSymbol
-                                        size={16}
-                                        color="#808080"
-                                        name="trash.fill"
-                                    />
-                                </Pressable>
-                            </View>
-
-                            <Text>{recipient}</Text>
-                        </>
-                    )}
-
-                    <BalanceInput
-                        tokenName={""}
-                        action={"Transfer"}
-                        isLoading={isTransfering}
-                        placeholder={`Transferable amount...`}
-                        onAction={(balance) => {
-                            const transferOp = async (amount: bigint, recipient: string) => {
-                                setIsTransfering(true)
-                                try {
-                                    await transfer(amount, recipient)
-                                } catch (e) {
-                                    console.error(e)
-                                }
-                                setIsTransfering(false)
-                            };
-
-
-                            if (recipient) {
-                                const amount = numberToBigInt(balance, 0);
-                                void transferOp(amount, recipient)
-                            }
-                        }}
-                    />
-                </>
-            )}
-
-            {/*Withdraw*/}
-            {tongoAccountState.balance > 0 && (
-                <>
-                    <Text style={{fontWeight: "bold"}}>Withdraw</Text>
-
-                    <BalanceInput
-                        tokenName={""}
-                        action={"Withdraw"}
-                        isLoading={isWithdrawing}
-                        placeholder={`Withdrawing amount...`}
-                        onAction={(balance) => {
-                            const withdrawOp = async (amount: bigint) => {
-                                setIsWithdrawing(true)
-                                try {
-                                    await withdraw(amount);
-                                } catch (e) {
-                                    console.error(e)
-                                }
-                                setIsWithdrawing(false)
-                            };
-
+            {/* Transfer Modal */}
+            <OperationModal title="Transfer" visible={showTransfer} onClose={() => setShowTransfer(false)}>
+                {!recipient && (
+                    <TongoAddressInput placeholder={"Type recipient..."} setRecipient={setRecipient} />
+                )}
+                {recipient && (
+                    <>
+                        <View style={{flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center'}}>
+                            <Text>{"Recipient:"}</Text>
+                            <Pressable onPress={() => { setRecipient(null) }}>
+                                <IconSymbol size={16} color="#808080" name="trash.fill" />
+                            </Pressable>
+                        </View>
+                        <Text>{recipient}</Text>
+                    </>
+                )}
+                <BalanceInput
+                    tokenName={""}
+                    action={"Transfer"}
+                    isLoading={isTransfering}
+                    placeholder={`Amount to transfer...`}
+                    onAction={(balance) => {
+                        const transferOp = async (amount: bigint, recipient: string) => {
+                            setIsTransfering(true)
+                            try { await transfer(amount, recipient) } catch (e) { console.error(e) }
+                            setIsTransfering(false); setShowTransfer(false);
+                        };
+                        if (recipient) {
                             const amount = numberToBigInt(balance, 0);
-                            if (amount <= tongoAccountState?.balance) {
-                                void withdrawOp(amount)
-                            }
-                        }}
-                    />
-                </>
-            )}
+                            void transferOp(amount, recipient)
+                        }
+                    }}
+                />
+            </OperationModal>
+
+            {/* Withdraw Modal */}
+            <OperationModal title="Withdraw" visible={showWithdraw} onClose={() => setShowWithdraw(false)}>
+                <BalanceInput
+                    tokenName={""}
+                    action={"Withdraw"}
+                    isLoading={isWithdrawing}
+                    placeholder={`Amount to withdraw...`}
+                    onAction={(balance) => {
+                        const withdrawOp = async (amount: bigint) => {
+                            setIsWithdrawing(true)
+                            try { await withdraw(amount) } catch (e) { console.error(e) }
+                            setIsWithdrawing(false); setShowWithdraw(false);
+                        };
+                        const amount = numberToBigInt(balance, 0);
+                        if (amount <= tongoAccountState?.balance) {
+                            void withdrawOp(amount)
+                        }
+                    }}
+                />
+            </OperationModal>
         </View>
     );
 }
@@ -204,27 +229,6 @@ function Balance() {
                 <View style={balanceStyles.balanceContainer}>
                     <Text style={balanceStyles.title}>Pending</Text>
                     <Text style={balanceStyles.balance}>{tongoAccountState.pending}</Text>
-
-                    {tongoAccountState.pending > 0 && (
-                        <ProgressButton
-                            title={"Rollover"}
-                            isLoading={isRollingOver}
-                            onPress={() => {
-                                const rolloverOp = async () => {
-                                    setIsRollingOver(true)
-                                    try {
-                                        await rollover();
-                                    } catch (e) {
-                                        console.error(e)
-                                    }
-                                    setIsRollingOver(false)
-                                };
-
-                                void rolloverOp()
-                            }}
-                        />
-                    )}
-
                 </View>
             </View>
         </View>
