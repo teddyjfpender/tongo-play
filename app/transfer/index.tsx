@@ -2,7 +2,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View, FlatList } from 'react-native';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
-import { useRouter } from 'expo-router';
+import { Stack, useRouter } from 'expo-router';
+import { HeaderBackButton } from '@react-navigation/elements';
 import SectionCard from '@/components/ui/section-card';
 import { useAddressBookStore } from '@/stores/useAddressBookStore';
 import { IconSymbol } from '@/components/ui/icon-symbol';
@@ -29,7 +30,18 @@ export default function TransferSelectRecipient() {
   };
 
   return (
-    <View style={styles.container}>
+    <>
+      <Stack.Screen
+        options={{
+          headerTitle: 'Transfer',
+          headerBackTitleVisible: false,
+          animation: 'none',
+          headerLeft: (props) => (
+            <HeaderBackButton {...props} onPress={() => router.back()} tintColor={themeColors.text as string} />
+          ),
+        }}
+      />
+      <View style={styles.container}>
       <SectionCard right={<Pressable onPress={() => setShowAdd((v) => !v)}><IconSymbol name={'plus.circle.fill'} color={themeColors.text} size={22} /></Pressable>}>
         <Text style={styles.title}>Send to</Text>
         <Text style={[styles.hint, { color: themeColors.icon }]}>Address (base58 Tongo public key)</Text>
@@ -84,7 +96,8 @@ export default function TransferSelectRecipient() {
           />
         </SectionCard>
       )}
-    </View>
+      </View>
+    </>
   );
 }
 

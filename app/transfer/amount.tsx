@@ -1,14 +1,15 @@
-import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
-import SectionCard from '@/components/ui/section-card';
 import BalanceInput from '@/components/balance-input';
-import numberToBigInt from '@/utils/numberToBigInt';
-import { useAccountStore } from '@/stores/useAccountStore';
-import { useAddressBookStore } from '@/stores/useAddressBookStore';
 import AddressPill from '@/components/ui/address-pill';
+import SectionCard from '@/components/ui/section-card';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useAccountStore } from '@/stores/useAccountStore';
+import { useAddressBookStore } from '@/stores/useAddressBookStore';
+import numberToBigInt from '@/utils/numberToBigInt';
+import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
+import { HeaderBackButton } from '@react-navigation/elements';
+import { useEffect, useMemo, useState } from 'react';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 function truncate(addr: string) {
   return addr.length > 10 ? `${addr.slice(0,5)}...${addr.slice(-6)}` : addr;
@@ -39,7 +40,18 @@ export default function TransferAmount() {
   }, [tongoAccountState, amount]);
 
   return (
-    <View style={styles.container}>
+    <>
+      <Stack.Screen
+        options={{
+          headerTitle: 'Transfer',
+          headerBackTitleVisible: false,
+          animation: 'none',
+          headerLeft: (props) => (
+            <HeaderBackButton {...props} onPress={() => router.back()} tintColor={themeColors.text as string} />
+          ),
+        }}
+      />
+      <View style={styles.container}>
       <Text style={[styles.progress, { color: themeColors.icon }]}>2/2 • Enter amount</Text>
 
       {/* Asset section */}
@@ -67,7 +79,7 @@ export default function TransferAmount() {
           {tongoAccountState && (
             <View style={styles.assetBottomRow}>
               <Pressable
-                disabled={!tongoAccountState || tongoAccountState.balance === 0}
+                disabled={!tongoAccountState || tongoAccountState.balance === 0n}
                 onPress={() => {
                   // Populate input with max available instead of auto-sending
                   const maxVal = Number(tongoAccountState!.balance);
@@ -113,7 +125,8 @@ export default function TransferAmount() {
       >
         <Text style={{ color: themeColors.background, textAlign: 'center', fontWeight: '700' }}>Transfer</Text>
       </Pressable>
-    </View>
+      </View>
+    </>
   );
 }
 
