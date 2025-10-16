@@ -30,6 +30,7 @@ export interface AccountState {
     fund: (amount: bigint) => Promise<void>;
     transfer: (amount: bigint, recipientAddress: string) => Promise<void>;
     rollover: () => Promise<void>;
+    withdraw: (amount: bigint) => Promise<void>;
     refreshBalance: () => Promise<void>;
     nuke: () => Promise<void>;
 }
@@ -216,6 +217,26 @@ export const useAccountStore = create<AccountState>((set, get) => ({
         console.log("Rollover tx sent...");
         await provider.waitForTransaction(tx.transaction_hash)
         console.log("Rollover succeeded");
+        const state = await tongoAccount.state();
+        set({tongoAccountState: state});
+    },
+    withdraw: async (amount: bigint) => {
+        const { provider, starknetAccount, tongoAccount } = get();
+
+        if (!starknetAccount) throw new Error("Starknet account not found...");
+        if (!tongoAccount) throw new Error("Tongo account not found...");
+
+        console.log("Withdraw started");
+        const withdrawOp = await tongoAccount.withdraw({
+            to: starknetAccount.address,
+            amount: amount
+        });
+
+        console.log("Withdraw tx...");
+        const withdrawTx = await starknetAccount.execute(withdrawOp.toCalldata());
+        console.log("Withdraw tx sent...");
+        await provider.waitForTransaction(withdrawTx.transaction_hash);
+        console.log("Withdraw succeeded");
         const state = await tongoAccount.state();
         set({tongoAccountState: state});
     },

@@ -28,14 +28,14 @@ export type AccountStateViewProps = {
 
 function TongoAccountView({style, tokenName, account}: AccountStateViewProps) {
     const [recipient, setRecipient] = useState<string | null>(null);
-    const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
     const [isFunding, setIsFunding] = useState<boolean>(false);
     const [isTransfering, setIsTransfering] = useState<boolean>(false);
+    const [isWithdrawing, setIsWithdrawing] = useState<boolean>(false);
     const {
         tongoAccount,
         tongoAccountState,
         fund,
-        refreshBalance,
+        withdraw,
         transfer
     } = useAccountStore();
 
@@ -43,11 +43,11 @@ function TongoAccountView({style, tokenName, account}: AccountStateViewProps) {
 
     return (
         <View style={[style, {gap: 8}]}>
-            <Text style={styles.title}>{`Tongo Account (${tokenName})`}</Text>
+            <Text style={styles.title}>{`Confidential (${tokenName})`}</Text>
             <AddressView address={tongoAccount.tongoAddress()}/>
 
             <Balance />
-            
+
             <BalanceInput
                 tokenName={""}
                 action={"Fund"}
@@ -69,6 +69,7 @@ function TongoAccountView({style, tokenName, account}: AccountStateViewProps) {
                     void fundOp(amount)
                 }}/>
 
+            {/*Transfer*/}
             {tongoAccountState.balance > 0 && (
                 <>
                     <Text style={{fontWeight: "bold"}}>Transfer</Text>
@@ -126,6 +127,35 @@ function TongoAccountView({style, tokenName, account}: AccountStateViewProps) {
                 </>
             )}
 
+            {/*Withdraw*/}
+            {tongoAccountState.balance > 0 && (
+                <>
+                    <Text style={{fontWeight: "bold"}}>Withdraw</Text>
+
+                    <BalanceInput
+                        tokenName={""}
+                        action={"Withdraw"}
+                        isLoading={isWithdrawing}
+                        placeholder={`Withdrawing amount...`}
+                        onAction={(balance) => {
+                            const withdrawOp = async (amount: bigint) => {
+                                setIsWithdrawing(true)
+                                try {
+                                    await withdraw(amount);
+                                } catch (e) {
+                                    console.error(e)
+                                }
+                                setIsWithdrawing(false)
+                            };
+
+                            const amount = numberToBigInt(balance, 0);
+                            if (amount <= tongoAccountState?.balance) {
+                                void withdrawOp(amount)
+                            }
+                        }}
+                    />
+                </>
+            )}
         </View>
     );
 }
