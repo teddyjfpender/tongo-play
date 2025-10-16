@@ -30,7 +30,7 @@ export interface AccountState {
     restoreFromMnemonic: (mnemonic: string[]) => void;
 
     restoreStarknetAccount: (privateKey: string) => Promise<void>;
-    createStarknetAccount: () => Promise<void>;
+    createStarknetAccount: (privateKey?: string) => Promise<void>;
     deployStarknetAccount: () => Promise<void>;
 
     associateTongoAccount: () => Promise<void>;
@@ -117,7 +117,9 @@ export const useAccountStore = create<AccountState>((set, get) => ({
         const account = starknetAccountFromPrivateKey(accountContractKeyPairs.spendingKeyPair.privateSpendingKey, OZ_ACCOUNT_CLASS_HASH, provider);
         await setStringItem(OZ_ACCOUNT_STORAGE_KEY, accountContractKeyPairs.spendingKeyPair.privateSpendingKey);
 
-        set({starknetAccount: account, isDeployed: false});
+        const classHash = await getAccountClassHash(provider, account);
+        const deployed = classHash !== null;
+        set({starknetAccount: account, isDeployed: deployed});
         console.log("Account created ", account.address);
 
         // tongo account data
@@ -139,16 +141,18 @@ export const useAccountStore = create<AccountState>((set, get) => ({
             throw new Error("Invalid Private Key");
         }
 
-        const account = starknetAccountFromPrivateKey(privateKey, OZ_ACCOUNT_CLASS_HASH, provider);
-        await setStringItem(OZ_ACCOUNT_STORAGE_KEY, privateKey);
+        const account = starknetAccountFromPrivateKey(key, OZ_ACCOUNT_CLASS_HASH, provider);
+        await setStringItem(OZ_ACCOUNT_STORAGE_KEY, key);
 
         let classHash = await getAccountClassHash(provider, account);
         set({starknetAccount: account, isDeployed: classHash !== null});
         console.log("Account restored", account.address);
     },
-    createStarknetAccount: async () => {
+    createStarknetAccount: async (privateKey?: string) => {
         const { provider } = get();
-        const privKey = `0x0${randomHex(63)}`;
+        const privKey: string = privateKey
+            ? (privateKey.startsWith("0x") ? privateKey : `0x${privateKey}`)
+            : `0x0${randomHex(63)}`;
 
         console.log("Private Key: ", privKey);
         const account = starknetAccountFromPrivateKey(privKey, OZ_ACCOUNT_CLASS_HASH, provider);
