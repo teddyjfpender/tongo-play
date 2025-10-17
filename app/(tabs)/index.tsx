@@ -4,13 +4,13 @@ import {useMnemonicStore} from "@/stores/useMnemonicStore";
 import AccountView from "@/components/account-view";
 import {useEffect, useMemo, useState} from "react";
 import * as Clipboard from 'expo-clipboard';
+import {generateMnemonicWords} from "@starkms/key-management";
 
 export default function HomeScreen() {
     const {
         isInitialized,
         starknetAccount,
         initialize,
-        generateMnemonic,
         restoreFromMnemonic,
     } = useAccountStore();
     const { setMnemonic, toWords, isValidMnemonic, clearMnemonic } = useMnemonicStore();
@@ -29,9 +29,9 @@ export default function HomeScreen() {
     }, [isInitialized, initialize]);
 
     const handleCreateWallet = () => {
-        const words = generateMnemonic();
+        const words = generateMnemonicWords();
         setMnemonic(words);
-        void restoreFromMnemonic(words);
+        void restoreFromMnemonic(words, true);
     };
 
     const handleRestoreWallet = async () => {
@@ -41,7 +41,7 @@ export default function HomeScreen() {
             // Ensure no mnemonic remains in memory for restored wallets
             clearMnemonic();
             const parsed = toWords(restoreMnemonic);
-            await restoreFromMnemonic(parsed);
+            await restoreFromMnemonic(parsed, true);
         } finally {
             setIsRestoring(false);
         }

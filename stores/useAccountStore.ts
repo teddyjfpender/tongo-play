@@ -1,17 +1,16 @@
-import deriveTongoPrivateKey from "@/utils/deriveTongoPrivateKey";
 import isValidPrivateKey from "@/utils/isValidPrivateKey";
 import randomHex from "@/utils/randomHex";
 import {getStringItem, removeItem, setStringItem} from "@/utils/secureStorage";
 import starknetAccountFromPrivateKey from "@/utils/starknetAccountFromPrivateKey";
-import {Account as TongoAccount, AccountState as TongoAccountState} from "@fatsolutions/tongo-sdk";
-import {ProjectivePoint, projectivePointToStarkPoint, pubKeyBase58ToAffine } from "@fatsolutions/tongo-sdk/src/types";
-import { deriveAccountAddress, deriveStarknetKeyPairs, generateMnemonicWords, getStarknetPublicKeyFromPrivate, joinMnemonicWords } from "@starkms/key-management";
-import { Account, RpcError, RpcProvider } from "starknet";
-import { create } from "zustand";
+import {Account as TongoAccount} from "@fatsolutions/tongo-sdk";
+import {ProjectivePoint, projectivePointToStarkPoint, pubKeyBase58ToAffine} from "@fatsolutions/tongo-sdk/src/types";
+import {deriveStarknetKeyPairs, joinMnemonicWords, mnemonicToWords} from "@starkms/key-management";
+import {Account, CallData, RpcError, RpcProvider} from "starknet";
+import {create} from "zustand";
 
 const OZ_ACCOUNT_CLASS_HASH = "0x05b4b537eaa2399e3aa99c4e2e0208ebd6c71bc1467938cd52c798c601e43564";
 const TONGO_STRK_CONTRACT_ADDRESS = "0x00b4cca30f0f641e01140c1c388f55641f1c3fe5515484e622b6cb91d8cee585";
-const OZ_ACCOUNT_STORAGE_KEY = "oz.account.key";
+const OZ_ACCOUNT_MNEMONIC = "oz.account.mnemonic";
 
 export interface AccountState {
     readonly provider: RpcProvider;
@@ -23,17 +22,15 @@ export interface AccountState {
 
     initialize: () => Promise<void>;
 
-    // "create wallet"
-    generateMnemonic: () => string[];
-
     // "restore wallet"
-    restoreFromMnemonic: (mnemonic: string[]) => void;
+    restoreFromMnemonic: (mnemonic: string[], save: boolean) => Promise<void>;
 
     restoreStarknetAccount: (privateKey: string) => Promise<void>;
     createStarknetAccount: (privateKey?: string) => Promise<void>;
     deployStarknetAccount: () => Promise<void>;
 
-    associateTongoAccount: () => Promise<void>;
+    createTongoAccount: () => Promise<void>;
+    associateTongoAccount: (mnemonic: string) => Promise<void>;
     fund: (amount: bigint) => Promise<void>;
     transfer: (amount: bigint, recipientAddress: string) => Promise<void>;
     rollover: () => Promise<void>;
@@ -88,56 +85,42 @@ export const useAccountStore = create<AccountState>((set, get) => ({
     tongoBalance: null,
 
     initialize: async () => {
-        const {provider, associateTongoAccount} = get();
-        const privateKey = await getStringItem(OZ_ACCOUNT_STORAGE_KEY);
+        const {restoreFromMnemonic} = get();
+        const mnemonic = await getStringItem(OZ_ACCOUNT_MNEMONIC);
 
-        if (privateKey) {
-            const account = starknetAccountFromPrivateKey(privateKey, OZ_ACCOUNT_CLASS_HASH, provider);
-            let classHash = await getAccountClassHash(provider, account);
-            let deployed = classHash !== null;
-            set({starknetAccount: account, isInitialized: true, isDeployed: deployed});
-
-            if (deployed) {
-                await associateTongoAccount();
-            }
+        if (mnemonic) {
+            const words = mnemonicToWords(mnemonic);
+            await restoreFromMnemonic(words, false)
         } else {
             set({starknetAccount: null, isInitialized: true});
             console.log("No Account from local storage");
         }
     },
 
-    generateMnemonic: () => {
-        return generateMnemonicWords()
-    },
+    restoreFromMnemonic: async (mnemonic: string[], save: boolean) => {
+        const { provider, associateTongoAccount } = get();
 
-    restoreFromMnemonic: async (mnemonic: string[]) => {
-        const { provider, refreshBalance } = get();
-
+        console.log("Restoring account from mnemonic");
         const mnemonicPhrase = joinMnemonicWords(mnemonic)
+        await setStringItem(OZ_ACCOUNT_MNEMONIC, mnemonicPhrase);
 
         // derive regular Starknet key pair for OZ Account Contract
         const args = {accountIndex: 0, addressIndex: 0}
         const accountContractKeyPairs = deriveStarknetKeyPairs(args, mnemonicPhrase, true)
 
-        // derive Tongo key pair
-        const argsTongo = {accountIndex: 0, addressIndex: 0, coinType: 5454}
-        const tongoKeyPairs = deriveStarknetKeyPairs(argsTongo, mnemonicPhrase, false)
-
         // store setters
         // starknet account data
         const account = starknetAccountFromPrivateKey(accountContractKeyPairs.spendingKeyPair.privateSpendingKey, OZ_ACCOUNT_CLASS_HASH, provider);
-        await setStringItem(OZ_ACCOUNT_STORAGE_KEY, accountContractKeyPairs.spendingKeyPair.privateSpendingKey);
 
         const classHash = await getAccountClassHash(provider, account);
         const deployed = classHash !== null;
-        set({starknetAccount: account, isDeployed: deployed});
-        console.log("Account created ", account.address);
+        console.log("Account", account.address);
+        set({starknetAccount: account, isDeployed: deployed, isInitialized: true});
 
         // tongo account data
-        const tongoAccount = new TongoAccount(tongoKeyPairs.spendingKeyPair.privateSpendingKey, TONGO_STRK_CONTRACT_ADDRESS, provider);
-        console.log("Tongo Account: ", tongoAccount.tongoAddress());
-
-        await refreshBalance()
+        if (deployed) {
+            await associateTongoAccount(mnemonicPhrase)
+        }
     },
 
     restoreStarknetAccount: async (privateKey: string) => {
@@ -152,7 +135,7 @@ export const useAccountStore = create<AccountState>((set, get) => ({
         }
 
         const account = starknetAccountFromPrivateKey(key, OZ_ACCOUNT_CLASS_HASH, provider);
-        await setStringItem(OZ_ACCOUNT_STORAGE_KEY, key);
+        await setStringItem(OZ_ACCOUNT_MNEMONIC, key);
 
         let classHash = await getAccountClassHash(provider, account);
         set({starknetAccount: account, isDeployed: classHash !== null});
@@ -166,7 +149,7 @@ export const useAccountStore = create<AccountState>((set, get) => ({
 
         console.log("Private Key: ", privKey);
         const account = starknetAccountFromPrivateKey(privKey, OZ_ACCOUNT_CLASS_HASH, provider);
-        await setStringItem(OZ_ACCOUNT_STORAGE_KEY, privKey);
+        await setStringItem(OZ_ACCOUNT_MNEMONIC, privKey);
 
         set({starknetAccount: account, isDeployed: false});
         console.log("Account created ", account.address);
@@ -177,19 +160,14 @@ export const useAccountStore = create<AccountState>((set, get) => ({
             throw new Error("StarknetAccount not found. Nothing to deploy...");
         }
 
-        const privateKey = await getStringItem(OZ_ACCOUNT_STORAGE_KEY);
-        if (!privateKey) {
-            throw new Error("No private key found...");
-        }
-
-        const publicKey = getStarknetPublicKeyFromPrivate(privateKey, true);
-        const derived = deriveAccountAddress(publicKey, { classHash: OZ_ACCOUNT_CLASS_HASH, salt: "0x0" });
+        const pubKey = await starknetAccount.signer.getPubKey();
 
         console.log("Deploying...")
         const { transaction_hash, contract_address } = await starknetAccount.deployAccount({
-            classHash: derived.classHash,
-            constructorCalldata: derived.constructorCalldata,
-            addressSalt: derived.salt,
+            classHash: OZ_ACCOUNT_CLASS_HASH,
+            constructorCalldata: CallData.compile({ publicKey: pubKey }),
+            addressSalt: pubKey,
+            contractAddress: starknetAccount.address,
         });
         console.log(`Deploying ${transaction_hash}...`)
         const receipt = await provider.waitForTransaction(transaction_hash);
@@ -197,14 +175,22 @@ export const useAccountStore = create<AccountState>((set, get) => ({
         set({isDeployed: true})
     },
 
-    associateTongoAccount: async () => {
-        const {provider, starknetAccount, refreshBalance} = get();
+    createTongoAccount: async () => {
+        const {associateTongoAccount} = get();
+        const mnemonic = await getStringItem(OZ_ACCOUNT_MNEMONIC);
 
-        if (!starknetAccount) throw new Error("Starknet Account not found...");
+        if (!mnemonic) throw new Error("No mnemonic stored");
 
-        const tongoPrivateKey = await deriveTongoPrivateKey(starknetAccount);
-        console.log("Tongo Private Key: ", tongoPrivateKey);
-        const tongoAccount = new TongoAccount(tongoPrivateKey, TONGO_STRK_CONTRACT_ADDRESS, provider);
+        await associateTongoAccount(mnemonic);
+    },
+    associateTongoAccount: async (mnemonic: string) => {
+        const {provider, refreshBalance} = get();
+
+        // Currently constant index
+        const argsTongo = {accountIndex: 0, addressIndex: 0, coinType: 5454}
+        const tongoKeyPairs = deriveStarknetKeyPairs(argsTongo, mnemonic, false)
+
+        const tongoAccount = new TongoAccount(tongoKeyPairs.spendingKeyPair.privateSpendingKey, TONGO_STRK_CONTRACT_ADDRESS, provider);
         console.log("Tongo Account: ", tongoAccount.tongoAddress());
 
         set({tongoAccount: tongoAccount});
@@ -336,7 +322,7 @@ export const useAccountStore = create<AccountState>((set, get) => ({
             throw new Error("StarknetAccount not found. Nothing to remove...");
         }
 
-        await removeItem(OZ_ACCOUNT_STORAGE_KEY);
+        await removeItem(OZ_ACCOUNT_MNEMONIC);
         set({
             isInitialized: true,
             starknetAccount: null,

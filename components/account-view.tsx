@@ -23,7 +23,7 @@ function AccountView({starknetAccount}: AccountViewProps) {
         isDeployed,
         tongoBalance,
         deployStarknetAccount,
-        associateTongoAccount,
+        createTongoAccount,
         nuke
     } = useAccountStore();
     const { mnemonicWords } = useMnemonicStore();
@@ -90,7 +90,7 @@ function AccountView({starknetAccount}: AccountViewProps) {
                         const associate = async () => {
                             setIsAssociating(true)
                             try {
-                                await associateTongoAccount();
+                                await createTongoAccount();
                             } catch (e) {
                                 console.log(e)
                             }
