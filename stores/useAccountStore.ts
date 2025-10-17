@@ -1,10 +1,10 @@
 import deriveTongoPrivateKey from "@/utils/deriveTongoPrivateKey";
 import isValidPrivateKey from "@/utils/isValidPrivateKey";
 import randomHex from "@/utils/randomHex";
-import { getStringItem, removeItem, setStringItem } from "@/utils/secureStorage";
+import {getStringItem, removeItem, setStringItem} from "@/utils/secureStorage";
 import starknetAccountFromPrivateKey from "@/utils/starknetAccountFromPrivateKey";
-import { Account as TongoAccount, AccountState as TongoAccountState } from "@fatsolutions/tongo-sdk";
-import { ProjectivePoint, projectivePointToStarkPoint, pubKeyBase58ToAffine } from "@fatsolutions/tongo-sdk/src/types";
+import {Account as TongoAccount, AccountState as TongoAccountState} from "@fatsolutions/tongo-sdk";
+import {ProjectivePoint, projectivePointToStarkPoint, pubKeyBase58ToAffine } from "@fatsolutions/tongo-sdk/src/types";
 import { deriveAccountAddress, deriveStarknetKeyPairs, generateMnemonicWords, getStarknetPublicKeyFromPrivate, joinMnemonicWords } from "@starkms/key-management";
 import { Account, RpcError, RpcProvider } from "starknet";
 import { create } from "zustand";
@@ -19,7 +19,7 @@ export interface AccountState {
     isDeployed: boolean;
     starknetAccount: Account | null;
     tongoAccount: TongoAccount | null;
-    tongoAccountState: TongoAccountState | null;
+    tongoBalance: TongoBalance | null;
 
     initialize: () => Promise<void>;
 
@@ -39,10 +39,20 @@ export interface AccountState {
     rollover: () => Promise<void>;
     withdraw: (amount: bigint) => Promise<void>;
     refreshBalance: () => Promise<void>;
+    ragequit: () => Promise<void>;
     nuke: () => Promise<void>;
 }
 
-async function getAccountClassHash(provider: RpcProvider, account: Account): Promise<string|null> {
+export type TongoBalance = {
+    tongoBalance: bigint;
+    tongoPendingBalance: bigint;
+    nonce: bigint;
+
+    erc20Balance: bigint;
+    erc20pendingBalance: bigint;
+}
+
+async function getAccountClassHash(provider: RpcProvider, account: Account): Promise<string | null> {
     try {
         return await provider.getClassHashAt(account.address);
     } catch (e) {
@@ -75,10 +85,10 @@ export const useAccountStore = create<AccountState>((set, get) => ({
     isDeployed: false,
     starknetAccount: null,
     tongoAccount: null,
-    tongoAccountState: null,
+    tongoBalance: null,
 
     initialize: async () => {
-        const { provider, associateTongoAccount } = get();
+        const {provider, associateTongoAccount} = get();
         const privateKey = await getStringItem(OZ_ACCOUNT_STORAGE_KEY);
 
         if (privateKey) {
@@ -101,7 +111,7 @@ export const useAccountStore = create<AccountState>((set, get) => ({
     },
 
     restoreFromMnemonic: async (mnemonic: string[]) => {
-        const { provider } = get();
+        const { provider, refreshBalance } = get();
 
         const mnemonicPhrase = joinMnemonicWords(mnemonic)
 
@@ -127,12 +137,11 @@ export const useAccountStore = create<AccountState>((set, get) => ({
         const tongoAccount = new TongoAccount(tongoKeyPairs.spendingKeyPair.privateSpendingKey, TONGO_STRK_CONTRACT_ADDRESS, provider);
         console.log("Tongo Account: ", tongoAccount.tongoAddress());
 
-        const balance = await tongoAccount.state();
-        set({tongoAccount: tongoAccount, tongoAccountState: balance});
+        await refreshBalance()
     },
 
     restoreStarknetAccount: async (privateKey: string) => {
-        const { provider } = get();
+        const {provider} = get();
 
         const key = privateKey.startsWith("0x")
             ? privateKey
@@ -150,7 +159,7 @@ export const useAccountStore = create<AccountState>((set, get) => ({
         console.log("Account restored", account.address);
     },
     createStarknetAccount: async (privateKey?: string) => {
-        const { provider } = get();
+        const {provider} = get();
         const privKey: string = privateKey
             ? (privateKey.startsWith("0x") ? privateKey : `0x${privateKey}`)
             : `0x0${randomHex(63)}`;
@@ -163,7 +172,7 @@ export const useAccountStore = create<AccountState>((set, get) => ({
         console.log("Account created ", account.address);
     },
     deployStarknetAccount: async () => {
-        const { starknetAccount, provider } = get();
+        const {starknetAccount, provider} = get();
         if (!starknetAccount) {
             throw new Error("StarknetAccount not found. Nothing to deploy...");
         }
@@ -189,7 +198,7 @@ export const useAccountStore = create<AccountState>((set, get) => ({
     },
 
     associateTongoAccount: async () => {
-        const { provider, starknetAccount } = get();
+        const {provider, starknetAccount, refreshBalance} = get();
 
         if (!starknetAccount) throw new Error("Starknet Account not found...");
 
@@ -198,11 +207,11 @@ export const useAccountStore = create<AccountState>((set, get) => ({
         const tongoAccount = new TongoAccount(tongoPrivateKey, TONGO_STRK_CONTRACT_ADDRESS, provider);
         console.log("Tongo Account: ", tongoAccount.tongoAddress());
 
-        const balance = await tongoAccount.state();
-        set({tongoAccount: tongoAccount, tongoAccountState: balance});
+        set({tongoAccount: tongoAccount});
+        await refreshBalance();
     },
     fund: async (amount: bigint) => {
-        const { provider, starknetAccount, tongoAccount } = get();
+        const {provider, starknetAccount, tongoAccount, refreshBalance} = get();
 
         if (!starknetAccount) throw new Error("Starknet account not found...");
         if (!tongoAccount) throw new Error("Tongo account not found...");
@@ -222,12 +231,11 @@ export const useAccountStore = create<AccountState>((set, get) => ({
         await provider.waitForTransaction(tx.transaction_hash);
 
         console.log("TX Completed");
-        const state = await tongoAccount.state();
-        set({tongoAccountState: state});
+        await refreshBalance();
     },
 
     transfer: async (amount: bigint, recipientAddress: string) => {
-        const { provider, starknetAccount, tongoAccount } = get();
+        const {provider, starknetAccount, tongoAccount, refreshBalance} = get();
 
         if (!starknetAccount) throw new Error("Starknet account not found...");
         if (!tongoAccount) throw new Error("Tongo account not found...");
@@ -245,11 +253,11 @@ export const useAccountStore = create<AccountState>((set, get) => ({
         console.log("Waiting for:", tx.transaction_hash);
         await provider.waitForTransaction(tx.transaction_hash);
         console.log("TX Completed");
-        const state = await tongoAccount.state();
-        set({tongoAccountState: state});
+
+        await refreshBalance();
     },
     rollover: async () => {
-        const { provider, starknetAccount, tongoAccount } = get();
+        const {provider, starknetAccount, tongoAccount, refreshBalance} = get();
 
         if (!starknetAccount) throw new Error("Starknet account not found...");
         if (!tongoAccount) throw new Error("Tongo account not found...");
@@ -261,11 +269,11 @@ export const useAccountStore = create<AccountState>((set, get) => ({
         console.log("Rollover tx sent...");
         await provider.waitForTransaction(tx.transaction_hash)
         console.log("Rollover succeeded");
-        const state = await tongoAccount.state();
-        set({tongoAccountState: state});
+
+        await refreshBalance();
     },
     withdraw: async (amount: bigint) => {
-        const { provider, starknetAccount, tongoAccount } = get();
+        const {provider, starknetAccount, tongoAccount, refreshBalance} = get();
 
         if (!starknetAccount) throw new Error("Starknet account not found...");
         if (!tongoAccount) throw new Error("Tongo account not found...");
@@ -278,24 +286,52 @@ export const useAccountStore = create<AccountState>((set, get) => ({
 
         console.log("Withdraw tx...");
         const withdrawTx = await starknetAccount.execute(withdrawOp.toCalldata());
-        console.log("Withdraw tx sent...");
+        console.log("Withdraw tx sent", withdrawTx.transaction_hash);
         await provider.waitForTransaction(withdrawTx.transaction_hash);
         console.log("Withdraw succeeded");
-        const state = await tongoAccount.state();
-        set({tongoAccountState: state});
+        await refreshBalance();
     },
     refreshBalance: async () => {
-        const { tongoAccount } = get();
+        const {tongoAccount} = get();
         if (!tongoAccount) throw new Error("Tongo account not found...");
 
         console.log("Refreshing balance...")
         const state = await tongoAccount.state();
+        const rate = await tongoAccount.rate();
+
         console.log("Refreshed")
-        set({tongoAccountState: state});
+        set({
+            tongoBalance: {
+                tongoBalance: state.balance,
+                tongoPendingBalance: state.pending,
+                nonce: state.nonce,
+                erc20Balance: state.balance * rate,
+                erc20pendingBalance: state.pending * rate,
+            }
+        });
+    },
+    ragequit: async () => {
+        const {provider, starknetAccount, tongoAccount, refreshBalance} = get();
+        if (!starknetAccount) throw new Error("Starknet account not found...");
+        if (!tongoAccount) throw new Error("Tongo account not found...");
+
+        console.log("Rage quitting...")
+        const ragequitOp = await tongoAccount.ragequit({
+            to: starknetAccount.address
+        })
+
+        console.log("Rage quit tx...");
+        const ragequitTx = await starknetAccount.execute(ragequitOp.toCalldata())
+
+        console.log("Rage quit sent", ragequitTx.transaction_hash);
+        await provider.waitForTransaction(ragequitTx.transaction_hash);
+        console.log("Rage quit succeeded");
+
+        await refreshBalance();
     },
 
     nuke: async () => {
-        const { starknetAccount } = get();
+        const {starknetAccount} = get();
         if (!starknetAccount) {
             throw new Error("StarknetAccount not found. Nothing to remove...");
         }
@@ -304,6 +340,8 @@ export const useAccountStore = create<AccountState>((set, get) => ({
         set({
             isInitialized: true,
             starknetAccount: null,
+            tongoAccount: null,
+            tongoBalance: null,
             isDeployed: false
         })
     },

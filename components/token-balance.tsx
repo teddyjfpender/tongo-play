@@ -3,6 +3,7 @@ import {useAccountStore} from "@/stores/useAccountStore";
 import {Abi, Contract, num, Provider, uint256} from "starknet";
 import {useCallback, useEffect, useMemo, useState} from "react";
 import {IconSymbol} from "@/components/ui/icon-symbol";
+import formattedBalance from "@/utils/formattedBalance";
 
 export interface TokenBalanceProps {
     token: string,
@@ -91,8 +92,9 @@ class BalanceChecker {
 
         const { low, high } = result.balance;
         const balanceBigInt = uint256.uint256ToBN({ low, high });
+
         console.log(balanceBigInt);
-        return balanceBigInt.toLocaleString("en-US", {})
+        return formattedBalance(balanceBigInt, 18)
     }
 }
 

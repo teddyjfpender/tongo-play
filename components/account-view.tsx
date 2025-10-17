@@ -21,7 +21,7 @@ function AccountView({starknetAccount}: AccountViewProps) {
     const {
         tongoAccount,
         isDeployed,
-        tongoAccountState,
+        tongoBalance,
         deployStarknetAccount,
         associateTongoAccount,
         nuke
@@ -110,7 +110,7 @@ function AccountView({starknetAccount}: AccountViewProps) {
                 />
             )}
 
-            {(tongoAccountState && tongoAccount) && (
+            {(tongoBalance && tongoAccount) && (
                 <TongoAccountView
                     style={{paddingHorizontal: 16, marginTop: 16}}
                     tokenName={"STRK"}

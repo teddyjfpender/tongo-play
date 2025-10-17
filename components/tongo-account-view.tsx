@@ -1,24 +1,14 @@
-import {Account, AccountState} from "@fatsolutions/tongo-sdk";
-import {
-    ActivityIndicator,
-    Button,
-    Pressable,
-    StyleProp,
-    StyleSheet,
-    Text,
-    TextInput,
-    View,
-    ViewStyle
-} from "react-native";
+import {Account} from "@fatsolutions/tongo-sdk";
+import {ActivityIndicator, Pressable, StyleProp, StyleSheet, Text, View, ViewStyle} from "react-native";
 import {AddressView} from "@/components/address-view";
 import BalanceInput from "@/components/balance-input";
-import numberToBigInt from "@/utils/numberToBigInt";
+import toSafeBigint from "@/utils/toSafeBigint";
 import TongoAddressInput from "@/components/tongo-address-input";
-import {useEffect, useState} from "react";
-import {ProjectivePoint, projectivePointToStarkPoint, pubKeyBase58ToAffine} from "@fatsolutions/tongo-sdk/src/types";
+import {useState} from "react";
 import {IconSymbol} from "@/components/ui/icon-symbol";
 import {useAccountStore} from "@/stores/useAccountStore";
 import {ProgressButton} from "@/components/progress-button";
+import formattedBalance from "@/utils/formattedBalance";
 
 export type AccountStateViewProps = {
     style?: StyleProp<ViewStyle>,
@@ -31,22 +21,24 @@ function TongoAccountView({style, tokenName, account}: AccountStateViewProps) {
     const [isFunding, setIsFunding] = useState<boolean>(false);
     const [isTransfering, setIsTransfering] = useState<boolean>(false);
     const [isWithdrawing, setIsWithdrawing] = useState<boolean>(false);
+    const [isRageQuitting, setIsRageQuitting] = useState<boolean>(false);
     const {
         tongoAccount,
-        tongoAccountState,
+        tongoBalance,
         fund,
         withdraw,
-        transfer
+        transfer,
+        ragequit,
     } = useAccountStore();
 
-    if (!tongoAccountState || !tongoAccount) return null;
+    if (!tongoBalance || !tongoAccount) return null;
 
     return (
         <View style={[style, {gap: 8}]}>
             <Text style={styles.title}>{`Confidential (${tokenName})`}</Text>
             <AddressView address={tongoAccount.tongoAddress()}/>
 
-            <Balance />
+            <Balance tokenName={tokenName} />
 
             <BalanceInput
                 tokenName={""}
@@ -65,12 +57,12 @@ function TongoAccountView({style, tokenName, account}: AccountStateViewProps) {
                     }
 
 
-                    const amount = numberToBigInt(balance, 0);
+                    const amount = toSafeBigint(balance);
                     void fundOp(amount)
                 }}/>
 
             {/*Transfer*/}
-            {tongoAccountState.balance > 0 && (
+            {tongoBalance.tongoBalance > 0 && (
                 <>
                     <Text style={{fontWeight: "bold"}}>Transfer</Text>
 
@@ -119,7 +111,7 @@ function TongoAccountView({style, tokenName, account}: AccountStateViewProps) {
 
 
                             if (recipient) {
-                                const amount = numberToBigInt(balance, 0);
+                                const amount = toSafeBigint(balance);
                                 void transferOp(amount, recipient)
                             }
                         }}
@@ -128,7 +120,7 @@ function TongoAccountView({style, tokenName, account}: AccountStateViewProps) {
             )}
 
             {/*Withdraw*/}
-            {tongoAccountState.balance > 0 && (
+            {tongoBalance.tongoBalance > 0 && (
                 <>
                     <Text style={{fontWeight: "bold"}}>Withdraw</Text>
 
@@ -148,33 +140,55 @@ function TongoAccountView({style, tokenName, account}: AccountStateViewProps) {
                                 setIsWithdrawing(false)
                             };
 
-                            const amount = numberToBigInt(balance, 0);
-                            if (amount <= tongoAccountState?.balance) {
+                            const amount = toSafeBigint(balance);
+                            if (amount <= tongoBalance?.tongoBalance) {
                                 void withdrawOp(amount)
                             }
                         }}
                     />
                 </>
             )}
+
+            {/*Ragequit*/}
+            {tongoBalance.tongoBalance > 0 && (
+                <ProgressButton
+                    title={"Ragequit"}
+                    isLoading={isRageQuitting}
+                    color={"red"}
+                    onPress={() => {
+                        const ragequitOp = async () => {
+                            setIsRageQuitting(true)
+                            try {
+                                await ragequit();
+                            } catch (e) {
+                                console.log(e)
+                            }
+                            setIsRageQuitting(false)
+                        };
+
+                        void ragequitOp();
+                    }}
+                />
+            )}
         </View>
     );
 }
 
-function Balance() {
+function Balance({tokenName}: {tokenName: string}) {
     const {
-        tongoAccountState,
+        tongoBalance,
         refreshBalance,
         rollover
     } = useAccountStore();
     const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
     const [isRollingOver, setIsRollingOver] = useState<boolean>(false);
 
-    if (!tongoAccountState) return null;
+    if (!tongoBalance) return null;
 
     return (
         <View>
             <View style={balanceStyles.header}>
-                <Text>{`Nonce: ${tongoAccountState.nonce}`}</Text>
+                <Text>{`Nonce: ${tongoBalance.nonce}`}</Text>
 
                 <Pressable onPress={() => {
                     const refreshOp = async () => {
@@ -198,14 +212,21 @@ function Balance() {
             <View style={balanceStyles.container}>
                 <View style={balanceStyles.balanceContainer}>
                     <Text style={balanceStyles.title}>Balance</Text>
-                    <Text style={balanceStyles.balance}>{tongoAccountState.balance}</Text>
+                    <View>
+                        <Text style={balanceStyles.balance}>{tongoBalance.tongoBalance}</Text>
+                        <Text style={balanceStyles.balanceERC20}>{`≈ ${formattedBalance(tongoBalance.erc20Balance, 18)} ${tokenName}`}</Text>
+                    </View>
+
                 </View>
 
                 <View style={balanceStyles.balanceContainer}>
                     <Text style={balanceStyles.title}>Pending</Text>
-                    <Text style={balanceStyles.balance}>{tongoAccountState.pending}</Text>
+                    <View>
+                        <Text style={balanceStyles.balance}>{tongoBalance.tongoPendingBalance}</Text>
+                        <Text style={balanceStyles.balanceERC20}>{`≈ ${formattedBalance(tongoBalance.erc20pendingBalance, 18)} ${tokenName}`}</Text>
+                    </View>
 
-                    {tongoAccountState.pending > 0 && (
+                    {tongoBalance.tongoPendingBalance > 0 && (
                         <ProgressButton
                             title={"Rollover"}
                             isLoading={isRollingOver}
@@ -267,5 +288,10 @@ const balanceStyles = StyleSheet.create({
     },
     balance: {
         alignSelf: "center",
+        color: "black",
+    },
+    balanceERC20: {
+        alignSelf: "center",
+        color: "#686565"
     }
 })

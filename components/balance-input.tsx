@@ -22,6 +22,9 @@ function BalanceInput({placeholder, tokenName, action, isLoading, onAction}: Bal
                     onChangeText={(text) => {
                         if (!isNaN(Number(text))) {
                             setBalanceText(text);
+
+                            let number = parseFloat(text);
+                            console.log(number);
                         }
                     }}
                     placeholder={placeholder ?? ""}
