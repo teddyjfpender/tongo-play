@@ -163,15 +163,13 @@ export const useAccountStore = create<AccountState>((set, get) => ({
         const pubKey = await starknetAccount.signer.getPubKey();
 
         console.log("Deploying...")
-        const { transaction_hash, contract_address } = await starknetAccount.deployAccount({
+        const { transaction_hash } = await starknetAccount.deploySelf({
             classHash: OZ_ACCOUNT_CLASS_HASH,
             constructorCalldata: CallData.compile({ publicKey: pubKey }),
-            addressSalt: pubKey,
-            contractAddress: starknetAccount.address,
-        });
+        })
         console.log(`Deploying ${transaction_hash}...`)
-        const receipt = await provider.waitForTransaction(transaction_hash);
-        console.log('✅ Account deployed.\n   address =', contract_address, receipt);
+        await provider.waitForTransaction(transaction_hash);
+        console.log("✅ Account deployed.");
         set({isDeployed: true})
     },
 
